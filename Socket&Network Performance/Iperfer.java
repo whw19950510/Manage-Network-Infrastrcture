@@ -26,8 +26,8 @@ public class Iperfer {
                 long datacount = 0;
                 final long startTime = System.nanoTime();
                 while((System.nanoTime() - startTime)/1000000000.0 < time) {
-                    datacount += 1000;
-                    out.println(str);
+                    datacount += str.getBytes().length;
+                    out.print(str);
                     out.flush();
                 }
                 double actualTime = (System.nanoTime() - startTime)/1000000000.0;
@@ -46,28 +46,26 @@ public class Iperfer {
             if(port < 1024 || port > 65535) {
                 System.out.println("Error: port number must be in the range 1024 to 65535");                                
             }
+            ServerSocket serverSoc = new ServerSocket(port);
             while(true) {
                 try {
                     long datarecv = 0;
                     double rate = 0;
                     double time = 0;
-                    int red = -1;
-                    byte[] buffer = new byte[1000]; // a read buffer of 5KiB
+                    long red = -1;
+                    char[] buffer = new char[1000]; // a read buffer of 5KiB
                     byte[] redData;
-                    ServerSocket serverSoc = new ServerSocket(port);
                     System.out.println("Listening...");
                     Socket clientSocket = serverSoc.accept();
                     System.out.println("Connected client");
-                    BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                    BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()),1000);
                     long startTime = System.nanoTime();
-                    while((red = clientSocket.getInputStream().read(buffer)) > -1) {
-                        redData = new byte[red];
-                        System.arraycopy(buffer, 0, redData, 0, red);
-                        datarecv += 1000;
+                    while((red = in.read(buffer)) != -1) {
+                        datarecv += red;
                     }
                     double actualTime = (System.nanoTime() - startTime) / 1000000000.0;
                     rate = datarecv/(1000000*actualTime);
-                    System.out.println("sent="+ datarecv/1000 +" KB rate="+ rate +" Mbps"); 
+                    System.out.println("received="+ datarecv/1000 +" KB rate="+ rate +" Mbps"); 
                     serverSoc.close();
                     System.exit(0);
                 } catch(IOException e) {
