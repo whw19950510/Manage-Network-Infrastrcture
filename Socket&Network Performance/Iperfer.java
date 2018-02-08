@@ -25,15 +25,16 @@ public class Iperfer {
                 PrintWriter out = new PrintWriter(cursoc.getOutputStream(), true);
                 long datacount = 0;
                 final long startTime = System.nanoTime();
-                while((System.nanoTime() - startTime)/1000000000.0 < time) {
+                while((double)(System.nanoTime() - startTime)/1E9 < time) {
                     datacount += str.getBytes().length;
                     out.print(str);
                     out.flush();
                 }
-                double actualTime = (System.nanoTime() - startTime)/1000000000.0;
+                long endTime = System.nanoTime();
+                double actualTime = ((double)(endTime - startTime))/1E9;//time in seconds
                 out.close();
                 cursoc.close();
-                double rate = datacount/(1000000*actualTime);
+                double rate = datacount*8/(1000000*actualTime);
                 System.out.println("sent="+ datacount/1000 +" KB rate="+ rate +" Mbps");
             } catch (IOException e) {
                 e.printStackTrace();
@@ -50,8 +51,6 @@ public class Iperfer {
             while(true) {
                 try {
                     long datarecv = 0;
-                    double rate = 0;
-                    double time = 0;
                     long red = -1;
                     char[] buffer = new char[1000]; // a read buffer of 5KiB
                     byte[] redData;
@@ -63,8 +62,8 @@ public class Iperfer {
                     while((red = in.read(buffer)) != -1) {
                         datarecv += red;
                     }
-                    double actualTime = (System.nanoTime() - startTime) / 1000000000.0;
-                    rate = datarecv/(1000000*actualTime);
+                    double actualTime = ((double)(System.nanoTime() - startTime)) / 1E9;
+                    double rate = datarecv*8/(1000000*actualTime);
                     System.out.println("received="+ datarecv/1000 +" KB rate="+ rate +" Mbps"); 
                     serverSoc.close();
                     System.exit(0);

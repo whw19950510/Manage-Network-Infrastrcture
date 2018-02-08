@@ -1,0 +1,36 @@
+Q2:
+--- 10.0.0.4 ping statistics ---
+20 packets transmitted, 20 received, 0% packet loss, time 19024ms
+rtt min/avg/max/mdev = 160.192/161.000/166.688/1.631 ms
+
+throughput:58216KB, server:18.655Mbps,client:20.7864Mbps
+
+
+Q3:
+2 pairs simutanleously: 
+160.974ms
+161.171 ms
+throughput:
+one pair:server:6.58Mbps,client:7.55Mbps
+one pair:12.926Mbps,15.745
+
+
+three pairs:
+161.092ms
+161.050ms
+160.928ms
+1st pair:20125KB,6.672Mbps,7.993Mbps
+2nd pair:15151KB,4.886Mbps,5.307Mbps
+3rd pair:28246KB,8.470Mbps,10.162Mbps
+
+
+
+
+Q4: Effects of Latency
+h1 with h4 同时 h5 with h6:
+
+h1-h4 RTT avg:160.327ms
+throughput: 42592KB,14.968Mbps,17.036Mbps
+
+h5-h6 RTT avg:40.340ms
+throughput: 70129KB,22.557Mbps,26.393Mbps
