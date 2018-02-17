@@ -58,7 +58,7 @@ public class Switch extends Device
 		MACAddress sourceAddr = etherPacket.getSourceMAC();
 		MACAddress destAddr = etherPacket.getDestinationMAC();
 		// If not contained anything of this packets's source address
-		// should learn by yourself
+		// should learn by switch itself
 		if(forwardingTable.containsKey(sourceAddr) == false) {
 			SwitchEntry newEntry = new SwitchEntry(sourceAddr, inIface,15);
 			forwardingTable.put(sourceAddr, newEntry);
@@ -73,10 +73,9 @@ public class Switch extends Device
 		} else {
 			for(String cur: this.interfaces.keySet()) {
 				Iface onesent = this.interfaces.get(cur);
-				if(onesent.getMacAddress().equals(inIface.getMacAddress()))
+				if(onesent.getName().equals(inIface.getName()))
 					continue;
-				// should compare about the macaddress 
-				//or the string name of this ifnumebr??????
+				// can only compare about the hostname, if the same interface continue
 				this.sendPacket(etherPacket,onesent);
 			}
 		}
