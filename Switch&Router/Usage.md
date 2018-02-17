@@ -1,5 +1,11 @@
 ## Overview
-For this assignment, you will implement the forwarding behavior of a switch and a router. Recall that a switch forwards packets based on MAC address, and a router forwards packets based on IP address.
+For this project, I implement the forwarding behavior of a switch and a router. Recall that a switch forwards packets based on MAC address, and a router forwards packets based on IP address.
+
+## Test details
+- `sudo python ./run_mininet.py topos/topofile -a` to create topology for the network, the -a indicates this is a router testing while using the static arp-cache file for reading mapping information;
+- `./run_pox.sh` for connectingto the POX test module;
+- `java -jar file.jar -v r1 -r rtable.r1 -a arp_cache` indicates the cache file and router table used in the main programs.
+- `h1 ping 10.0.3.3` or using other wget file in other hosts.
 
 ## Learning Outcomes
 After completing this programming assignment, students should be able to:
