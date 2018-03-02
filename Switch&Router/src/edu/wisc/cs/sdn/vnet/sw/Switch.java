@@ -11,6 +11,8 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * @author Huawei Wang
  */
@@ -24,7 +26,7 @@ public class Switch extends Device
 	public Switch(String host, DumpFile logfile)
 	{
 		super(host,logfile);
-		forwardingTable = new HashMap<>();
+		forwardingTable = new ConcurrentHashMap<MACAddress,SwitchEntry>();
 		Runnable runnable = new Runnable() {
 			public void run() {
 				// task to run goes here

@@ -42,12 +42,12 @@ public class RouteTable
 			RouteEntry target = null;
 			int match = 0;
 			for(RouteEntry curEntry:this.entries) {//curEntry.gatewayAddress???
-				if((curEntry.getMaskAddress() & ip) == (curEntry.getDestinationAddress() & curEntry.getMaskAddress())) {
+				if((curEntry.getMaskAddress() & ip) == (curEntry.getMaskAddress() & curEntry.getDestinationAddress())) {
 					// int curresult = (curEntry.getMaskAddress() & ip);
 					int curresult = curEntry.getDestinationAddress();
-					if(target == null || match < Integer.bitCount(curresult)) {
+					if(target == null || match < curEntry.getMaskAddress()) {
 						target = curEntry;
-						match = Integer.bitCount(curresult);
+						match = curEntry.getMaskAddress();
 					}
 				}
 			}

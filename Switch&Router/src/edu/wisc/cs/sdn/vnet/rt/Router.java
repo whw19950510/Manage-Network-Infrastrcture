@@ -93,46 +93,27 @@ public class Router extends Device
 			IPv4 packetHeader = (IPv4)etherPacket.getPayload();
 			int headerBytes = 4*packetHeader.getHeaderLength();
 			/* Checksum calculation begin */
-			// reset checksum before computing
+			// reset checksum before computing, Compare new checksum with original to make sure no error during transmission process
 			short oriChecksum = packetHeader.getChecksum();
 			packetHeader.resetChecksum();
-			byte[] header = new byte[headerBytes];
-			ByteBuffer bb = ByteBuffer.wrap(header);
-			bb.put((byte) (((packetHeader.getVersion() & 0xf) << 4) | (packetHeader.getHeaderLength() & 0xf)));
-			bb.put(packetHeader.getDiffServ());
-			bb.putShort(packetHeader.getTotalLength());
-			bb.putShort(packetHeader.getIdentification());
-			bb.putShort((short) (((packetHeader.getFlags() & 0x7) << 13) | (packetHeader.getFragmentOffset() & 0x1fff)));
-			bb.put(packetHeader.getTtl());
-			bb.put(packetHeader.getProtocol());
-			bb.putShort(packetHeader.getChecksum());
-			bb.putInt(packetHeader.getSourceAddress());
-			bb.putInt(packetHeader.getDestinationAddress());
-			if (packetHeader.getOptions() != null)
-				bb.put(packetHeader.getOptions());
-			if (packetHeader.getChecksum() == 0) {
-				bb.rewind();
-				int accumulation = 0;
-				for (int i = 0; i < packetHeader.getHeaderLength() * 2; ++i) {
-					accumulation += 0xffff & bb.getShort();
-				}
-				accumulation = ((accumulation >> 16) & 0xffff)
-						+ (accumulation & 0xffff);
-				// packetHeader.checksum = (short) (~accumulation & 0xffff);
-				packetHeader = packetHeader.setChecksum((short) (~accumulation & 0xffff));//short contains 16 bits				
-				bb.putShort(10, packetHeader.getChecksum());
-			}
+			// serialize calculate checksum into byte array
+			byte[] headerdata = packetHeader.serialize();
+			packetHeader.deserialize(headerdata, 0, headerdata.length);
+			
 			if(oriChecksum != packetHeader.getChecksum())
 				return;
 			/* Checksum part end */
-			// TTL check
+			// TTL check, recompute the checksum
 			packetHeader = packetHeader.setTtl((byte)(packetHeader.getTtl() - 1));
 			if(packetHeader.getTtl() == 0)
 				return;
+			packetHeader.resetChecksum();
+			byte[] sendheader = packetHeader.serialize();
+			packetHeader.deserialize(sendheader, 0, sendheader.length);
 			
 			/** 
 			* the packet’s destination IP address exactly matches 
-			* one of the interface’s IP addresses, not necessarily the incoming interface,
+			* one of the interface’s IP addresses, can't be the incoming interface,
 			* then you do not need to do any furtherprocessing, 
 			* your router should drop the packet.
 			*/
@@ -147,7 +128,12 @@ public class Router extends Device
 				return;
 			Iface outInterface = target.getInterface();
 			MACAddress newSourceMAC = outInterface.getMacAddress();
-			ArpEntry macEntry = this.arpCache.lookup(target.getGatewayAddress());
+			ArpEntry macEntry = null;
+			if(target.getGatewayAddress() == 0) {
+				macEntry = this.arpCache.lookup(packetHeader.getDestinationAddress());//the host is directly conncted to the iface
+			} else {
+				macEntry = this.arpCache.lookup(target.getGatewayAddress());
+			}
 			if(macEntry == null)
 				return;
 			MACAddress newDestMAC = macEntry.getMac();
