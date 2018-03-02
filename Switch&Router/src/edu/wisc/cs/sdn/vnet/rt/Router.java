@@ -127,6 +127,8 @@ public class Router extends Device
 			if(target == null)
 				return;
 			Iface outInterface = target.getInterface();
+			if(outInterface == inIface)
+				return;
 			MACAddress newSourceMAC = outInterface.getMacAddress();
 			ArpEntry macEntry = null;
 			if(target.getGatewayAddress() == 0) {
