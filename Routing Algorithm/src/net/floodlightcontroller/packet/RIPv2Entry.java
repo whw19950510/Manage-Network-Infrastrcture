@@ -11,8 +11,8 @@ public class RIPv2Entry
 
     protected short addressFamily;
     protected short routeTag;
-	protected int address;
-	protected int subnetMask;
+	protected int address;//destination
+	protected int subnetMask;//ney
 	protected int nextHopAddress;
 	protected int metric;
 
