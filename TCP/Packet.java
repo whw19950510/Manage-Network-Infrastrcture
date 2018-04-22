@@ -8,17 +8,24 @@ class Packet {
     public static byte ACK = 0x01;
     public static byte FIN = 0x10;
     
+    private int resendTime;
     Packet() {
         byte[] buf = new byte[28];
         pack = new DatagramPacket(buf, buf.length);
+        resendTime = 0;
     }
 
     Packet(DatagramPacket pack) {
         this.pack = pack;
+        resendTime = 0;
     }
-    
+
     public DatagramPacket getPacket() {
         return pack;
+    }
+
+    public int getResendTime() {
+        return resendTime;
     }
 
     public int getSequencenumber() {
@@ -42,7 +49,7 @@ class Packet {
         }
         return seq;  
     }
-    public int getAck() {
+    public int getAckmber() {
         byte[] buf = pack.getData();
         InputStream ins = new ByteArrayInputStream(buf, 4,4);
         // int first = ins.read();
@@ -63,7 +70,7 @@ class Packet {
         }
         return ack;        
     }
-    public long getTime() {
+    public long getTimestamp() {
         byte[] buf = pack.getData();
         InputStream ins = new ByteArrayInputStream(buf, 8, 8);
         int count = 0;
@@ -154,16 +161,18 @@ class Packet {
 
     // Set function  for respective fields
 
-    public void setSeq(int seq) {
+    public void setSequencenumber(int seq) {
         byte[] data = new byte[4];
 
     }
 
-    public void setAck(int ack) {
-
+    public void setAcknumber(int ack) {
+        byte[] buf = pack.getData();
+        // write 4 bytes for this integer number
+        pack.setData(buf);
     }
 
-    public void setTimestamp() {
+    public void setTimestamp(long time) {
         long curtime = System.nanoTime();
 
     }
@@ -172,16 +181,27 @@ class Packet {
 
     }
 
-    public void setFlag() {
+    public void setSYN() {
 
     }
 
+    public void setACK() {
+
+    }
+
+    public void setFIN() {
+
+    }
+    // Should use the 2 part of sequence number to calculate this checksum field and make 1's complement
     public void setChecksum() {
 
     }
 
-    public void setData() {
+    public void setData(byte[] data) {
 
     }
 
+    public void setResendTime(int resendTime) {
+        this.resendTime = resendTime;
+    }
 }

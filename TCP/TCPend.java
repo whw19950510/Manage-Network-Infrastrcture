@@ -1,8 +1,8 @@
 
-
+import java.util.*;
 
 class TCPend {
-
+    
     private void generatePacket(int pos) {
         byte[] pac = new byte[28];
         
@@ -28,7 +28,7 @@ class TCPend {
                 sws = Integer.parseInt(args[11]);
 
                 // Construct the entity Host
-
+                Client curClient = new Client(port, remoteIP, serverport, filename, mtu, sws);
             } else {
                 System.out.println("Usage for client: java TCPend -p <port> -s <remote-IP> -a <remote-port> –f <file name> -m <mtu> -c <sws>");
             } 
@@ -41,7 +41,7 @@ class TCPend {
 
                 // Construct the entity Client
                 Host curHost = new Host(port, mtu, sws);
-                
+
             } else {
                 System.out.println("Usage for server: java TCPend -p <port> -m <mtu> -c <sws>");
             }

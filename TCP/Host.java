@@ -1,23 +1,27 @@
 
 import java.io.IOException;
 import java.net.*;
-import java.nio.channels.DatagramChannel;
 import java.util.*;
 
 public class Host {
     private int mtu;    // maximum transmission unit
-    private List<Packet> record;
+    private Queue<Packet> record;
     private int port;   // port which is receiving data
     private int sws;    // sliding window size
     private DatagramSocket receiveSocket;
+    private int seqExpect;
 
     public Host(int port, int MTU, int sws) {
         this.port = port;
         this.mtu = MTU;
         this.sws = sws;
-        record = new ArrayList<Packet>();
-
-        receiveSocket = new DatagramSocket(port, InetAddress.getLoopbackAddress());
+        record = new LinkedList<Packet>();
+        seqExpect = 0;
+        try {
+            receiveSocket = new DatagramSocket(port, InetAddress.getLocalHost()); 
+        } catch(Exception e) {
+            System.out.print(e.getStackTrace());
+        }
     }
     public void run() {
         try {
@@ -35,17 +39,45 @@ public class Host {
                 // The packet is an connection creation request
                 if(dealpack.isSYN()) {
                     Packet connectionACK = new Packet();
+                    int clientseq = dealpack.getSequencenumber();
+                    long clientTime = dealpack.getTimestamp();
+                    Packet response = new Packet();
+                    response.setAcknumber(clientseq + 1);
+                    seqExpect = clientseq + 1;              // record the next data byte to be received
+                    response.setSYN();
+                    response.setSequencenumber(100);        // Initial sequence number for Host side
+                    response.setTimestamp(clientTime);
+                    response.setChecksum();
 
-                }
-                if(dealpack.isACK()) {
+                    connectionACK.getPacket().setAddress(receivePacket.getAddress());
+                    connectionACK.getPacket().setPort(90);
+                    receiveSocket.send(connectionACK.getPacket());
+                } else if(dealpack.isACK()) {
 
-                }
-                // The packet is for connection close request of client side
-                if(dealpack.isFIN()) {
+                } else  if(dealpack.isFIN()) {
+                    // The packet is for connection close request of client side
+
+                } else {
+                    // Datasegment to be received
+                    Packet hostack = new Packet();                    
+                    int clientseq = dealpack.getSequencenumber();
+                    // Not in sequence packet
+                    if(clientseq != seqExpect) {
+                        record.offer(dealpack);
+                        hostack.setAcknumber(seqExpect);          // Retransmit this ack expected for the continuous packet 
+                        hostack.setTimestamp(dealpack.getTimestamp());
+                        hostack.setACK();
+                        hostack.setLength(0);
+                    } else {
+                        hostack.setAcknumber(seqExpect);
+                        hostack.setTimestamp(dealpack.getTimestamp());
+                        hostack.setACK();
+                        hostack.setLength(0);
+                    }   
 
                 }
             }
-        } catch(IOException e) {
+        } catch(Exception e) {
             System.out.println(e.getStackTrace());
             System.exit(1);
         }
