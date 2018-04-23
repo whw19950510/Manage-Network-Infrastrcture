@@ -1,18 +1,13 @@
-
+import tcp.*;
 import java.util.*;
-
 class TCPend {
-    
-    private void generatePacket(int pos) {
-        byte[] pac = new byte[28];
-        
-    }
+
     public static void main(String[] args) {
         if(args.length != 12 && args.length != 6) {
             return;
         }
         int port = 0;
-        int remoteIP = 0;
+        String remoteIP = null;
         int serverport = 0;
         String filename = null;
         int mtu = 0;
@@ -21,7 +16,7 @@ class TCPend {
             if(args[0].equals("-p") && args[2].equals("-s") && args[4].equals("-a") && args[6].equals("-f") && args[8].equals("-m") && args[10].equals("-c")) {
                 // Get respective params
                 port = Integer.parseInt(args[1]);
-                remoteIP = Integer.parseInt(args[3]);
+                remoteIP = args[3];
                 serverport = Integer.parseInt(args[5]);
                 filename = args[7];
                 mtu = Integer.parseInt(args[9]);
@@ -41,7 +36,7 @@ class TCPend {
 
                 // Construct the entity Client
                 Host curHost = new Host(port, mtu, sws);
-
+                
             } else {
                 System.out.println("Usage for server: java TCPend -p <port> -m <mtu> -c <sws>");
             }

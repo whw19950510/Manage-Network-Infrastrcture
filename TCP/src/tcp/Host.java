@@ -1,3 +1,4 @@
+package tcp;
 
 import java.io.IOException;
 import java.net.*;
@@ -5,17 +6,20 @@ import java.util.*;
 
 public class Host {
     private int mtu;    // maximum transmission unit
-    private Queue<Packet> record;
     private int port;   // port which is receiving data
     private int sws;    // sliding window size
     private DatagramSocket receiveSocket;
+
     private int seqExpect;
+    private Queue<Packet> record;
+    private Map<Integer, Packet>receiveBuffer;
 
     public Host(int port, int MTU, int sws) {
         this.port = port;
         this.mtu = MTU;
         this.sws = sws;
         record = new LinkedList<Packet>();
+        receiveBuffer = new HashMap<Integer, Packet>();
         seqExpect = 0;
         try {
             receiveSocket = new DatagramSocket(port, InetAddress.getLocalHost()); 
@@ -38,6 +42,8 @@ public class Host {
                 // Deal with different situation
                 // The packet is an connection creation request
                 if(dealpack.isSYN()) {
+                    if(dealpack.getSequencenumber() != 0)           // this is the first packet need to be acknowledged
+                        continue;
                     Packet connectionACK = new Packet();
                     int clientseq = dealpack.getSequencenumber();
                     long clientTime = dealpack.getTimestamp();
@@ -45,15 +51,15 @@ public class Host {
                     response.setAcknumber(clientseq + 1);
                     seqExpect = clientseq + 1;              // record the next data byte to be received
                     response.setSYN();
-                    response.setSequencenumber(100);        // Initial sequence number for Host side
+                    response.setSequencenumber(0);        // Initial sequence number for Host side
                     response.setTimestamp(clientTime);
                     response.setChecksum();
-
+                    // Where to send out this SYN packets:??????????????????????
                     connectionACK.getPacket().setAddress(receivePacket.getAddress());
                     connectionACK.getPacket().setPort(90);
                     receiveSocket.send(connectionACK.getPacket());
                 } else if(dealpack.isACK()) {
-
+                    continue;
                 } else  if(dealpack.isFIN()) {
                     // The packet is for connection close request of client side
 
@@ -87,15 +93,19 @@ public class Host {
     public void setMtu(int MTU) {
         this.mtu = MTU;
     }
+
     public void setPort(int port) {
         this.port = port;
     }
+
     public void setSws(int sws) {
         this.sws = sws;
     }
+
     public int getMtu() {
         return mtu;
     }
+
     public int getPort() {
         return port;
     }
