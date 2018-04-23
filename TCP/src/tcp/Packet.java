@@ -37,11 +37,11 @@ class Packet {
         return pactimeout;
     }
 
-    public int getSequencenumber() {
+    public long getSequencenumber() {
         byte[] buf = pack.getData();
         InputStream ins = new ByteArrayInputStream(buf);
         int count = 0;
-        int seq = 0;
+        long seq = 0;
         try {
             while(count > 0) {
                 count --;
@@ -58,11 +58,11 @@ class Packet {
         }
         return seq;  
     }
-    public int getAckmber() {
+    public long getAckmber() {
         byte[] buf = pack.getData();
         InputStream ins = new ByteArrayInputStream(buf);
         int count = 0;
-        int ack = 0;
+        long ack = 0;
         try {
             ins.skip(4);
             while(count > 0) {
@@ -233,12 +233,12 @@ class Packet {
 
     // Set function  for respective fields
 
-    public void setSequencenumber(int seq) {
+    public void setSequencenumber(long seq) {
         byte[] data = new byte[4];
 
     }
 
-    public void setAcknumber(int ack) {
+    public void setAcknumber(long ack) {
         byte[] buf = pack.getData();
         // write 4 bytes for this integer number
         pack.setData(buf);

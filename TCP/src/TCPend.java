@@ -24,6 +24,8 @@ class TCPend {
 
                 // Construct the entity Host
                 Client curClient = new Client(port, remoteIP, serverport, filename, mtu, sws);
+                curClient.connectionRequest();
+                curClient.runClient();
             } else {
                 System.out.println("Usage for client: java TCPend -p <port> -s <remote-IP> -a <remote-port> –f <file name> -m <mtu> -c <sws>");
             } 
@@ -36,7 +38,7 @@ class TCPend {
 
                 // Construct the entity Client
                 Host curHost = new Host(port, mtu, sws);
-                
+                curHost.runHost();
             } else {
                 System.out.println("Usage for server: java TCPend -p <port> -m <mtu> -c <sws>");
             }
