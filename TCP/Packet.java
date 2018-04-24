@@ -222,50 +222,116 @@ class Packet {
         return data;        
     }
 
-    // Set function  for respective fields
+     // Set function  for respective fields
 
     public void setSequencenumber(int seq) {
-        byte[] data = new byte[4];
-
+        ByteBuffer b = ByteBuffer.allocate(4);
+        b.putInt(seq);
+        byte[] result = b.array();
+        byte[] buf = pack.getData();
+        for (int i = 0; i < 4; i++) {
+            buf[i] = result[i];
+        }
+        pack = new DatagramPacket(buf, buf.length);
     }
 
     public void setAcknumber(int ack) {
+        ByteBuffer b = ByteBuffer.allocate(4);
+        b.putInt(ack);
+        byte[] result = b.array();
         byte[] buf = pack.getData();
-        // write 4 bytes for this integer number
-        pack.setData(buf);
+        for (int i = 0; i < 4; i++) {
+            buf[i + 4] = result[i];
+        }
+        pack = new DatagramPacket(buf, buf.length);
     }
 
     public void setTimestamp(long time) {
         long curtime = System.nanoTime();
+        ByteBuffer b = ByteBuffer.allocate(4);
+        b.putLong(curtime);
+        byte[] result = b.array();
+        byte[] buf = pack.getData();
+        for (int i = 0; i < 8; i++) {
+            buf[i + 8] = result[i];
+        }
+        pack = new DatagramPacket(buf, buf.length);
 
     }
 
     public void setLength(int length) {
-
+        ByteBuffer b = ByteBuffer.allocate(4);
+        length = length << 3;
+        b.putInt(length);
+        byte[] result = b.array();
+        byte[] buf = pack.getData();
+        for (int i = 0; i < 3; i++) {
+            buf[i + 16] = result[i];
+        }
+        buf[19] = (byte)(buf[19] & 0x07);
+        buf[19] = (byte)(buf[19] | result[3]);
+        pack = new DatagramPacket(buf, buf.length);
     }
 
     public void setSYN() {
-
+        byte[] buf = pack.getData();
+        buf[19] = (byte)(buf[19] | 0x04);
+        pack = new DatagramPacket(buf, buf.length);
     }
 
     public void setACK() {
-
+        byte[] buf = pack.getData();
+        buf[19] = (byte)(buf[19] | 0x01);
+        pack = new DatagramPacket(buf, buf.length);
     }
 
     public void setFIN() {
-
+        byte[] buf = pack.getData();
+        buf[19] = (byte)(buf[19] | 0x02);
+        pack = new DatagramPacket(buf, buf.length);
     }
     // Should use the 2 part of sequence number to calculate this checksum field and make 1's complement
     public void setChecksum() {
+        byte[] buf = pack.getData();
+        ByteBuffer bb = ByteBuffer.wrap(buf);
+        bb.rewind();
+        int accumulation = 0;
 
+        for (int i = 0; i < buf.length / 2; ++i) {
+            accumulation += 0xffff & bb.getShort();
+        }
+        // pad to an even number of shorts
+        if (buf.length % 2 > 0) {
+            accumulation += (bb.get() & 0xff) << 8;
+        }
+
+        accumulation = ((accumulation >> 16) & 0xffff)
+                + (accumulation & 0xffff);
+        short checksum = (short) (~accumulation & 0xffff);
+        bb.putShort(22, checksum);
+        byte[] result = bb.array();
+        pack = new DatagramPacket(result, result.length);
     }
 
     public void setData(byte[] data) {
+        byte[] buf = pack.getData();
+        byte[] newBuf = new byte[data.length + 24];
+        for (int i = 0; i < 24; i++) {
+            newBuf[i] = buf[i];
+        }
+        for (int i = 0; i < data.length; i++) {
+            buf[i + 24] = data[i];
+        }
 
+        pack = new DatagramPacket(newBuf, newBuf.length);
     }
 
     public void setResendTime(int resendTime) {
         this.resendTime = resendTime;
+    }
+
+    public void setTimeout(double pactimeout) {
+        this.pactimeout = pactimeout;
     }
 
 }
