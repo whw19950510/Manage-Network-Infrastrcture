@@ -1,5 +1,5 @@
-import tcp.*;
 import java.util.*;
+
 class TCPend {
 
     public static void main(String[] args) {

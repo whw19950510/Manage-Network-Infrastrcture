@@ -1,4 +1,3 @@
-package tcp;
 
 import java.io.*;
 import java.net.DatagramPacket;
@@ -24,18 +23,18 @@ public class Client {
     private int mtu;                        // maximum transmission unit, in byte
     private int sws;                        // Sliding window size for buffering, in byte
 
-    Map<Long, Double>unACK;              // HashMap for recording each packet's time out mechanism
-    Map<Long, Packet>sendBuffer;         // send buffer for unacknowledgement data
+    Map<Integer, Long>unACK;                 // HashMap for recording each packet's time out mechanism
+    Map<Integer, Packet>sendBuffer;            // send buffer for unacknowledgement data
     private DatagramSocket sendsocket;
 
     public static int Maximum_Retransmission = 16;
     private final double alpha = 0.875;     //  params used for RTT estimation
     private final double beta = 0.75;
     private int curbufferSize;
-    private long curSequencenumber;
-    private long lastSequencenumber;
-    private double curTimeout;                 // Estimate the timeout based on RTT time??????????
-    private Map<Long, Integer>duplicateACK;  // statistics of times of ACK packets received
+    private int curSequencenumber;
+    private int lastSequencenumber;
+    private double curTimeout;               // Estimate the timeout based on RTT time, each client has ony 1 single value based on the ACK received
+    private Map<Integer, Integer>duplicateACK;  // statistics of times of ACK packets received
 
     private volatile boolean isEstablished = false;
 
@@ -45,8 +44,8 @@ public class Client {
         this.filename = filename;
         this.mtu = mtu;
         this.sws = sws;
-        unACK = new ConcurrentHashMap<Long, Double>();
-        duplicateACK = new HashMap<Long, Integer>();
+        unACK = new ConcurrentHashMap<Integer, Long>();
+        duplicateACK = new HashMap<Integer, Integer>();
         curbufferSize = 0;
         try {
             this.remoteIP = InetAddress.getByName(remoteIP);
@@ -60,26 +59,6 @@ public class Client {
             sendsocket.disconnect();
             sendsocket.close();
         }
-        // Retransmission policy: Timeout of packet / duplicate ACK is 3 times
-        Runnable runnable = new Runnable() {
-			public void run() {
-				// update the timeout value for each ConcurrentHashMap Entry, if timeout resend current packet
-				for(Long cur:unACK.keySet()) {
-                    unACK.put(cur, unACK.get(cur) + 1);
-                    if(unACK.get(cur) > curTimeout) {
-                        sendBuffer.get(cur).setResendTime(sendBuffer.get(cur).getResendTime() + 1);
-                        // if the resend time exceed maximum time, lost connections just exit sending
-                        if(sendBuffer.get(cur).getResendTime() > Client.Maximum_Retransmission) {
-                            System.err.print("Exceed the maximum transmission time\n");
-                            System.exit(1);
-                        }
-                        sendPacket(sendBuffer.get(cur));
-                    }
-                }
-			}
-		};
-        ScheduledExecutorService manipulateTimeout = Executors.newSingleThreadScheduledExecutor();
-        manipulateTimeout.scheduleAtFixedRate(runnable, 0, 1, TimeUnit.NANOSECONDS);
     }
 
     public void connectionRequest() {
@@ -95,7 +74,7 @@ public class Client {
     }
 
     // write the file contents into byte array and encapsulate into Packet
-    public Packet generateDatapacket(long start, int len) {
+    public Packet generateDatapacket(int start, int len) {
         byte[] payload = new byte[len];
         Packet datapac = new Packet();
         int datalength = len;
@@ -142,15 +121,37 @@ public class Client {
                     Packet datapac = generateDatapacket(curSequencenumber, datalength);
                     sendPacket(datapac);
                     sendBuffer.put(curSequencenumber, datapac);
-                    unACK.put(curSequencenumber, 0.0);
+                    unACK.put(curSequencenumber, datapac.getTimestamp());
                     lastSequencenumber = curSequencenumber;
                     curSequencenumber += datapac.getLength();
                     curbufferSize += datapac.getLength();
                 }
             }
         };
-        sendService.scheduleAtFixedRate(sendRunnable, 0, 1, TimeUnit.NANOSECONDS);            
-        // Seems like a background thread running????????????????????
+        sendService.scheduleAtFixedRate(sendRunnable, 0, 1, TimeUnit.NANOSECONDS); 
+        
+        // Retransmission policy: Timeout of packet / duplicate ACK is 3 times
+        Runnable runnable = new Runnable() {
+			public void run() {
+				// update the timeout value for each ConcurrentHashMap Entry, if timeout resend current packet
+				for(Integer cur:unACK.keySet()) {
+                    // unACK.put(cur, unACK.get(cur) + 1);
+                    if(System.nanoTime() - unACK.get(cur) > curTimeout) {
+                        sendBuffer.get(cur).setResendTime(sendBuffer.get(cur).getResendTime() + 1);
+                        // if the resend time exceed maximum time, lost connections just exit sending
+                        if(sendBuffer.get(cur).getResendTime() > Client.Maximum_Retransmission) {
+                            System.err.print("Exceed the maximum transmission time\n");
+                            System.exit(1);
+                        }
+                        sendBuffer.get(cur).setTimestamp(System.nanoTime());
+                        sendPacket(sendBuffer.get(cur));
+                    }
+                }
+			}
+		};
+        ScheduledExecutorService manipulateTimeout = Executors.newSingleThreadScheduledExecutor();
+        manipulateTimeout.scheduleAtFixedRate(runnable, 0, 1, TimeUnit.NANOSECONDS);
+        // Main thread keeps receiving packets 
         while(true) {
             try {
                 sendsocket.receive(recv.getPacket());
@@ -189,7 +190,7 @@ public class Client {
                 System.exit(0);
             }
             else if(recv.isACK()) {
-                long acknumber = recv.getAckmber();
+                int acknumber = recv.getAckmber();
                 long sendTime = recv.getTimestamp();
                 double RTT = System.nanoTime() + (1 - alpha) * sendTime;
                 // Not acknowledgeing the last sendout packets
@@ -202,7 +203,7 @@ public class Client {
                         if(duplicateACK.get(acknumber) == 3) {
                             Packet resendtarget = sendBuffer.get(acknumber);
                             sendPacket(resendtarget);
-                            unACK.put(acknumber, 0.0); 
+                            unACK.put(acknumber, 0l); 
                             resendtarget.setResendTime(resendtarget.getResendTime() + 1);
                             resendtarget.setTimestamp(System.nanoTime());
                         }

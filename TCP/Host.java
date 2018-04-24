@@ -1,4 +1,3 @@
-package tcp;
 
 import java.net.*;
 import java.util.*;
@@ -10,18 +9,23 @@ public class Host {
     private int sws;    // sliding window size
     private DatagramSocket receiveSocket;
 
-    private long seqExpect;
-    private PriorityQueue<Long> record;
-    private Map<Long, Packet>receiveBuffer;
+    private int seqExpect;
+    private PriorityQueue<Integer> record;
+    private Map<Integer, Packet>receiveBuffer;
 
     private int selfSeq = 0;
     private File recvFile = null;
+
+    private int clientPort;
+    private InetAddress clientIP;
+
     public Host(int port, int MTU, int sws) {
         this.port = port;
         this.mtu = MTU;
         this.sws = sws;
-        record = new PriorityQueue<Long>((a, b) -> a.compareTo(b));
-        receiveBuffer = new HashMap<Long, Packet>();
+
+        record = new PriorityQueue<Integer>((a, b) -> a.compareTo(b));
+        receiveBuffer = new HashMap<Integer, Packet>();
         seqExpect = 0;
         selfSeq = 0;
         try {
@@ -58,7 +62,7 @@ public class Host {
                     if(dealpack.getSequencenumber() != 0)           // this is the first packet need to be acknowledged
                         continue;
                     Packet connectionACK = new Packet();
-                    long clientseq = dealpack.getSequencenumber();
+                    int clientseq = dealpack.getSequencenumber();
                     long clientTime = dealpack.getTimestamp();
                     connectionACK.setAcknumber(clientseq + 1);
                     seqExpect = clientseq + 1;                      // record the next data byte to be received
@@ -68,17 +72,17 @@ public class Host {
                     connectionACK.setTimestamp(clientTime);
                     connectionACK.setChecksum();
                     connectionACK.setLength(0);
-                    // Where to send out this SYN packets:??????????????????????
+                    // Send packet to where this packet come from, extract from the receiving packets
                     connectionACK.getPacket().setAddress(receivePacket.getAddress());
-                    connectionACK.getPacket().setPort(90);
+                    connectionACK.getPacket().setPort(receivePacket.getPort());
                     sendACKpacket(connectionACK);
                 } else if(dealpack.isACK()) {
                     // receive the connection establish packet
                     continue;
-                } else  if(dealpack.isFIN()) {
+                } else if(dealpack.isFIN()) {
                     // The packet is for connection close request of client side
                     Packet finack = new Packet();
-                    long clientSeq = dealpack.getSequencenumber();
+                    int clientSeq = dealpack.getSequencenumber();
                     finack.setACK();
                     finack.setChecksum();
                     finack.setLength(0);
@@ -88,7 +92,7 @@ public class Host {
                     finack.setAcknumber(clientSeq + 1);
                 } else {
                     // Datasegment to be received
-                    long clientseq = dealpack.getSequencenumber();
+                    int clientseq = dealpack.getSequencenumber();
                     // Not in sequence packet
                     if(clientseq != seqExpect) {
                         Packet hostack = new Packet();                                            

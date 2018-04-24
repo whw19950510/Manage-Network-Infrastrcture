@@ -1,5 +1,3 @@
-package tcp;
-
 import java.io.*;
 import java.net.DatagramPacket;
 import java.util.*;
@@ -11,18 +9,15 @@ class Packet {
     public static byte FIN = 0x10;
     
     private int resendTime;         // The packet may have been resent for several times
-    private double pactimeout;
     Packet() {
         byte[] buf = new byte[28];
         pack = new DatagramPacket(buf, buf.length);
         resendTime = 0;
-        pactimeout = 5;
     }
 
     Packet(DatagramPacket pack) {
         this.pack = pack;
         resendTime = 0;
-        pactimeout = 5;
     }
 
     public DatagramPacket getPacket() {
@@ -33,15 +28,11 @@ class Packet {
         return resendTime;
     }
 
-    public double getTimeout() {
-        return pactimeout;
-    }
-
-    public long getSequencenumber() {
+    public int getSequencenumber() {
         byte[] buf = pack.getData();
         InputStream ins = new ByteArrayInputStream(buf);
-        int count = 0;
-        long seq = 0;
+        int count = 4;
+        int seq = 0;
         try {
             while(count > 0) {
                 count --;
@@ -58,11 +49,11 @@ class Packet {
         }
         return seq;  
     }
-    public long getAckmber() {
+    public int getAckmber() {
         byte[] buf = pack.getData();
         InputStream ins = new ByteArrayInputStream(buf);
         int count = 0;
-        long ack = 0;
+        int  ack = 0;
         try {
             ins.skip(4);
             while(count > 0) {
@@ -233,12 +224,12 @@ class Packet {
 
     // Set function  for respective fields
 
-    public void setSequencenumber(long seq) {
+    public void setSequencenumber(int seq) {
         byte[] data = new byte[4];
 
     }
 
-    public void setAcknumber(long ack) {
+    public void setAcknumber(int ack) {
         byte[] buf = pack.getData();
         // write 4 bytes for this integer number
         pack.setData(buf);
@@ -277,7 +268,4 @@ class Packet {
         this.resendTime = resendTime;
     }
 
-    public void setTimeout(double pactimeout) {
-        this.pactimeout = pactimeout;
-    }
 }

@@ -1,17 +1,17 @@
 
+ALL:Client.class Host.class Packet.class TCPend.class
 
-Client:Client.java
+Client.class:Client.java
 	javac Client.java
 
-Host: Host.java
+Host.class: Host.java
 	javac Host.java
 
-Packet:Packet.java
+Packet.class:Packet.java
 	javac Packet.java
 
-TCPend:TCPend.java
+TCPend.class:TCPend.java
 	javac TCPend.java
 
-Clean:
-	rm -rf ./tcp/*.class
-	rm -rf ./*.class
+clean:
+	rm -rf *.class
