@@ -12,7 +12,7 @@ import java.util.concurrent.*;
 /* 
 Clarification: 
 1. The checksum is used whever to check and drop the packets, must match the checkSum first;
-2. MTU includes the packets header, whenver lost connection it will continuly to resend for several times and finally exit the system;
+2. MTU includes the packets header, whenever lost connection it will continuly to resend for several times and finally exit the system;
 3. If the established ACK is dropped but the next packet is not dropped, then everything is fine. Otherwise, the connection must be reset.
 You still can send out data packets as usual;
 */

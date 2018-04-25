@@ -100,7 +100,7 @@ class Packet {
             ins.skip(16);
             while(count > 0) {
                 count --;
-                if(count == 3) {
+                if(count == 0) {
                     // Last byte need to be erased
                     int temp = (ins.read() >> 3);
                     len += temp;
@@ -173,7 +173,7 @@ class Packet {
                 a.printStackTrace();
             }
         }
-        return ((flag & 3) >> 1) == 1;
+        return ((flag & 4) >> 2) == 1;
     }
     public int getChecksum() {
         int checkSum = 0;
@@ -242,7 +242,7 @@ class Packet {
     }
 
     public void setTimestamp(long time) {
-        ByteBuffer b = ByteBuffer.allocate(4);
+        ByteBuffer b = ByteBuffer.allocate(8);
         b.putLong(time);
         byte[] result = b.array();
         byte[] buf = pack.getData();
@@ -285,13 +285,13 @@ class Packet {
         bb.rewind();
         int accumulation = 0;
 
-        for (int i = 0; i < buf.length / 2; ++i) {
+        for (int i = 0; i < 2; ++i) {
             accumulation += 0xffff & bb.getShort();
         }
         // pad to an even number of shorts
-        if (buf.length % 2 > 0) {
-            accumulation += (bb.get() & 0xff) << 8;
-        }
+        // if (buf.length % 2 > 0) {
+        //     accumulation += (bb.get() & 0xff) << 8;
+        // }
 
         accumulation = ((accumulation >> 16) & 0xffff)
                 + (accumulation & 0xffff);
@@ -313,5 +313,33 @@ class Packet {
 
     public void setResendTime(int resendTime) {
         this.resendTime = resendTime;
+    }
+
+    public static void main(String[] args) {
+        Packet cur = new Packet(99);
+        cur.setSequencenumber(100);
+        System.out.printf("sequence number is %d\n",cur.getSequencenumber());
+        cur.setAcknumber(200);
+        System.out.printf("Ack number is %d\n",cur.getAckmber());
+        cur.setLength(99);
+        System.out.printf("Data length is %d\n", cur.getLength());
+        cur.setChecksum();
+        System.out.printf("Checksum number is %d\n",cur.getChecksum());
+        cur.setACK();
+        if(cur.isACK())
+            System.out.printf("success set ACK\n");
+
+        cur.setSYN();
+        if(cur.isSYN())
+            System.out.printf("success set SYN\n");
+
+        cur.setFIN();
+        if(cur.isFIN())
+            System.out.printf("success set FIN\n");
+        long lll = 356909657;
+        cur.setTimestamp(lll);
+        System.out.println(System.nanoTime());
+        System.out.println(System.nanoTime());        
+        System.out.printf("Time stamp is %d\n", cur.getTimestamp());
     }
 }
