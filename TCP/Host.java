@@ -116,10 +116,12 @@ public class Host {
                 Packet hostack = new Packet(0);                                                                
                 // Not in sequence packet
                 if(clientseq > seqExpect) {
-                    record.offer(clientseq);                  // if sws < record.size().....
-                    receiveBuffer.put(clientseq, dealpack);
+                    if(record.size() < sws) {
+                        record.offer(clientseq);                  // if sws < record.size().....
+                        receiveBuffer.put(clientseq, dealpack);
+                    }
                     hostack.setSequencenumber(0);
-                    hostack.setAcknumber(seqExpect);          // Retransmit this ack expected for the continuous packet 
+                    hostack.setAcknumber(seqExpect);              // Retransmit this ack expected for the continuous packet 
                     hostack.setTimestamp(dealpack.getTimestamp());
                     hostack.setACK();
                     hostack.setLength(0);

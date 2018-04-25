@@ -4,3 +4,8 @@ The UDP packet transmission is transmitted using the UDP DatagramSocket, which r
 
 ## Background threads using for transmission
 Using threadpool for packet sending and check whether the timeout value exceeds and retransmit.
+
+
+## write char array into file 
+decoration methods
+Writer fos = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("filename.txt"), "utf-8")));
