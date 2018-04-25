@@ -19,6 +19,9 @@ public class Host {
     private int clientPort;
     private InetAddress clientIP;
 
+    private final String recvtype = "rcv";
+    private final String sendtype = "snd";
+
     public Host(int port, int MTU, int sws) {
         this.port = port;
         this.mtu = MTU;
@@ -72,10 +75,14 @@ public class Host {
                     // Send packet to where this packet come from, extract from the receiving packets
                     connectionACK.getPacket().setSocketAddress(new InetSocketAddress(receivePacket.getAddress(), receivePacket.getPort()));
                     sendACKpacket(connectionACK);
+                    printoutInfo(recvtype, dealpack.getTimestamp(), "S---", dealpack.getSequencenumber(), dealpack.getLength(), dealpack.getAckmber());
+                    printoutInfo(sendtype, connectionACK.getTimestamp(), "SA--", connectionACK.getSequencenumber(), connectionACK.getLength(), connectionACK.getAckmber());
                 } else if(dealpack.isACK()) {
                     // receive the connection establish packet
+                    printoutInfo(recvtype, dealpack.getTimestamp(), "-A--", dealpack.getSequencenumber(), dealpack.getLength(), dealpack.getAckmber());
                     continue;
                 } else if(dealpack.isFIN()) {
+                    printoutInfo(recvtype, dealpack.getTimestamp(), "--F-", dealpack.getSequencenumber(), dealpack.getLength(), dealpack.getAckmber());
                     // The packet is for connection close request of client side
                     Packet finack = new Packet(0);
                     int clientSeq = dealpack.getSequencenumber();
@@ -86,7 +93,10 @@ public class Host {
                     finack.setTimestamp(dealpack.getTimestamp());
                     finack.setSequencenumber(selfSeq);
                     finack.setAcknumber(clientSeq + 1);
-
+                    sendACKpacket(finack);
+                    
+                    printoutInfo(sendtype, finack.getTimestamp(), "-A--", finack.getSequencenumber(), finack.getLength(), finack.getAckmber());
+                    
                     Packet finserver = new Packet(0);
                     finserver.setSequencenumber(selfSeq);
                     selfSeq++;
@@ -95,14 +105,16 @@ public class Host {
                     finserver.setLength(0);
                     finserver.setTimestamp(System.nanoTime());
                     finserver.setAcknumber(clientSeq + 1);
-                    sendACKpacket(finack);
                     sendACKpacket(finserver);
+
+                    printoutInfo(sendtype, finserver.getTimestamp(), "-AF-", finserver.getSequencenumber(), finserver.getLength(), finserver.getAckmber());
                 } else {
+                    printoutInfo(recvtype, dealpack.getTimestamp(), "---D", dealpack.getSequencenumber(), dealpack.getLength(), dealpack.getAckmber());                    
                     // Datasegment to be received
                     int clientseq = dealpack.getSequencenumber();
+                    Packet hostack = new Packet(0);                                                                
                     // Not in sequence packet
                     if(clientseq > seqExpect) {
-                        Packet hostack = new Packet(0);                                            
                         record.offer(clientseq);                    // if sws < record.size().....
                         receiveBuffer.put(clientseq, dealpack);
                         hostack.setSequencenumber(0);
@@ -123,7 +135,6 @@ public class Host {
                             seqExpect += templen;
                             receiveBuffer.remove(bufferpacseq);
                         }
-                        Packet hostack = new Packet(0);                                                
                         hostack.setAcknumber(seqExpect);
                         hostack.setTimestamp(dealpack.getTimestamp());
                         hostack.setACK();
@@ -131,6 +142,7 @@ public class Host {
                         hostack.setChecksum();
                         sendACKpacket(hostack);
                     }
+                    printoutInfo(sendtype, hostack.getTimestamp(), "-A--", hostack.getSequencenumber(), hostack.getLength(), hostack.getAckmber());                    
                 }
             }
         }
@@ -178,4 +190,9 @@ public class Host {
             }
         }
     }
+
+    public void printoutInfo(String pactype, double time, String flaglist, int seq, int numbytes, int acknumber) {
+        System.out.printf("%s %f %s %d %d %d\n", pactype, time, flaglist, seq, numbytes, acknumber);
+    }
+
 }

@@ -101,7 +101,6 @@ class Packet {
             while(count > 0) {
                 count --;
                 len += ins.read() * (int)Math.pow(256, count);
-                
             } 
         } catch(IOException e) {
             e.printStackTrace();
@@ -312,12 +311,12 @@ class Packet {
     }
 
     public static void main(String[] args) {
-        Packet cur = new Packet(99);
-        cur.setSequencenumber(100);
+        Packet cur = new Packet(1000001);
+        cur.setSequencenumber(560000);
         System.out.printf("sequence number is %d\n",cur.getSequencenumber());
         cur.setAcknumber(200);
         System.out.printf("Ack number is %d\n",cur.getAckmber());
-        cur.setLength(123);
+        cur.setLength(1000001);
         System.out.printf("Data length is %d\n", cur.getLength());
         cur.setChecksum();
         System.out.printf("Checksum number is %d\n",cur.getChecksum());
@@ -325,7 +324,7 @@ class Packet {
         if(cur.isACK())
             System.out.printf("success set ACK\n");
 
-        cur.setSYN();
+        // cur.setSYN();
         if(cur.isSYN())
             System.out.printf("success set SYN\n");
 

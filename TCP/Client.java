@@ -31,16 +31,20 @@ public class Client {
     public static int Maximum_Retransmission = 16;
     private final double alpha = 0.875;     //  params used for RTT estimation
     private final double beta = 0.75;
-    private int curbufferSize;
-    private int curSequencenumber;
+    private volatile int curbufferSize;
+    private volatile int curSequencenumber;
     private long filesize;
-    private double curTimeout;               // Estimate the timeout based on RTT time, each client has ony 1 single value based on the ACK received
+    private volatile double curTimeout;               // Estimate the timeout based on RTT time, each client has ony 1 single value based on the ACK received
     private double EDEV;
     private double ERTT;
     
     private Map<Integer, Integer>duplicateACK;  // statistics of times of ACK packets received
 
     private volatile boolean isEstablished = false;
+
+
+    private final String recvtype = "rcv";
+    private final String sendtype = "snd";
 
     public Client(int port, String remoteIP, int serverport, String filename, int mtu, int sws) {
         this.port = port;
@@ -75,6 +79,7 @@ public class Client {
         connectionreq.setLength(0);
         sendPacket(connectionreq);
         curSequencenumber = 1;              // The sequencenumber is set to 1
+        printoutInfo(sendtype, connectionreq.getTimestamp(), "S---", connectionreq.getSequencenumber(), connectionreq.getLength(), connectionreq.getAckmber());
     }
 
     // write the file contents into byte array and encapsulate into Packet
@@ -139,6 +144,7 @@ public class Client {
                     // unACK.put(curSequencenumber, datapac.getTimestamp());
                     curSequencenumber += datapac.getLength();
                     curbufferSize += datapac.getLength();////////////////////sws is total size or the data payload size
+                    printoutInfo(sendtype, datapac.getTimestamp(), "---D", datapac.getSequencenumber(), datapac.getLength(), datapac.getAckmber());
                 }
             }
         };
@@ -149,16 +155,17 @@ public class Client {
 			public void run() {
 				// update the timeout value for each ConcurrentHashMap Entry, if timeout resend current packet
 				for(Integer cur:sendBuffer.keySet()) {
-                    // unACK.put(cur, unACK.get(cur) + 1);
                     if(System.nanoTime() - sendBuffer.get(cur).getTimestamp() > curTimeout) {
-                        sendBuffer.get(cur).setResendTime(sendBuffer.get(cur).getResendTime() + 1);
+                        Packet timeoutpac = sendBuffer.get(cur);
+                        timeoutpac.setResendTime(timeoutpac.getResendTime() + 1);
                         // if the resend time exceed maximum time, lost connections just exit sending
                         if(sendBuffer.get(cur).getResendTime() > Client.Maximum_Retransmission) {
                             System.err.print("Exceed the maximum transmission time\n");
                             System.exit(1);
                         }
-                        sendBuffer.get(cur).setTimestamp(System.nanoTime());
-                        sendPacket(sendBuffer.get(cur));
+                        timeoutpac.setTimestamp(System.nanoTime());
+                        sendPacket(timeoutpac);
+                        printoutInfo(sendtype, timeoutpac.getTimestamp(), "---D", timeoutpac.getSequencenumber(), timeoutpac.getLength(), timeoutpac.getAckmber());
                     }
                 }
 			}
@@ -179,6 +186,7 @@ public class Client {
                 continue;
             // Connection establishes response
             if(recv.isSYN()) {
+                printoutInfo(recvtype, recv.getTimestamp(), "SA--", recv.getSequencenumber(), recv.getLength(), recv.getAckmber());                
                 Packet connectAck = new Packet(0);
                 connectAck.setSequencenumber(0);
                 connectAck.setAcknumber(recv.getSequencenumber() + 1);//??????????????????  header length? +++ acknumebr
@@ -188,9 +196,12 @@ public class Client {
 
                 sendPacket(connectAck);
                 isEstablished = true;
+                printoutInfo(sendtype, connectAck.getTimestamp(), "-A--", connectAck.getSequencenumber(), connectAck.getLength(), connectAck.getAckmber());                
             }
             // Receiver side's close request, will close the connection finally
             else if(recv.isFIN()) {
+                printoutInfo(recvtype, recv.getTimestamp(), "-AF-", recv.getSequencenumber(), recv.getLength(), recv.getAckmber());
+                
                 Packet closeAck = new Packet(0);
                 closeAck.setAcknumber(closeAck.getSequencenumber() + 1);
                 closeAck.setChecksum();
@@ -202,12 +213,15 @@ public class Client {
                 sendsocket.disconnect();
                 sendsocket.close();////////////////// ??? wait for 2RTT if nothing received then close the connection
                 isEstablished = false;
+                printoutInfo(sendtype, closeAck.getTimestamp(), "-A--", closeAck.getSequencenumber(), closeAck.getLength(), closeAck.getAckmber());
+                
                 System.exit(0);
             }
             else if(recv.isACK()) {
+                printoutInfo(recvtype, recv.getTimestamp(), "-A--", recv.getSequencenumber(), recv.getLength(), recv.getAckmber());                
+                
                 calculateTimeout(recv);
                 int acknumber = recv.getAckmber();
-                // Not acknowledgeing the last sendout packets
                 if(duplicateACK.containsKey(acknumber) == false) {
                     duplicateACK.put(acknumber, 1);
                     for(Integer cur:sendBuffer.keySet()) {
@@ -224,6 +238,7 @@ public class Client {
                         resendtarget.setTimestamp(System.nanoTime());
                         sendPacket(resendtarget);
                         resendtarget.setResendTime(resendtarget.getResendTime() + 1);
+                        printoutInfo(sendtype, resendtarget.getTimestamp(), "---D", resendtarget.getSequencenumber(), resendtarget.getLength(), resendtarget.getAckmber());
                     }
                 } 
             }
