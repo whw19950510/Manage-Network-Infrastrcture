@@ -27,148 +27,40 @@ class Packet {
     }
 
     public int getSequencenumber() {
-        byte[] buf = pack.getData();
-        InputStream ins = new ByteArrayInputStream(buf);
-        int count = 4;
-        int seq = 0;
-        try {
-            while(count > 0) {
-                count --;
-                seq += ins.read() * (int)Math.pow(256, count);  
-            }
-        } catch (IOException e) {
-                System.out.print(e.getStackTrace());
-        } finally { 
-            try {
-                ins.close();
-            } catch(IOException a) {
-                a.printStackTrace();
-            }
-        }
-        return seq;  
+        ByteBuffer b = ByteBuffer.allocate(4);
+        byte[] bytes = Arrays.copyOfRange(pack.getData(), 0, 4);
+        return b.wrap(bytes).getInt();
     }
     public int getAckmber() {
-        byte[] buf = pack.getData();
-        InputStream ins = new ByteArrayInputStream(buf);
-        int count = 4;
-        int  ack = 0;
-        try {
-            ins.skip(4);
-            while(count > 0) {
-                count--;
-                ack += ins.read() * (int)Math.pow(256, count);                
-            }
-         } catch(IOException e) {
-            System.out.print(e.getStackTrace());                
-        } finally {
-            try {
-                ins.close();
-            } catch(IOException a) {
-                a.printStackTrace();
-            }
-        }
-        return ack;        
+        ByteBuffer b = ByteBuffer.allocate(4);
+        byte[] bytes = Arrays.copyOfRange(pack.getData(), 4, 8);
+        return b.wrap(bytes).getInt();      
     }
     public long getTimestamp() {
-        byte[] buf = pack.getData();
-        InputStream ins = new ByteArrayInputStream(buf);
-        int count = 8;
-        long timeStamp = 0;
-        try {
-            ins.skip(8);
-            while(count > 0) {
-                count--;            
-                timeStamp += ins.read() * (int)Math.pow(256, count);                
-            }
-        } catch(IOException e) {
-            System.out.print(e.getStackTrace());
-        } finally {
-            try {
-                ins.close();
-            } catch(IOException a) {
-                a.printStackTrace();
-            }
-        }
-        return timeStamp;        
+        ByteBuffer b = ByteBuffer.allocate(8);
+        byte[] bytes = Arrays.copyOfRange(pack.getData(), 8, 16);
+        return b.wrap(bytes).getLong();      
     }
     public int getLength() {
-        byte[] buf = pack.getData();
-        int len = 0;
-        InputStream ins = new ByteArrayInputStream(buf);
-        int count = 4;
-        try {
-            ins.skip(16);
-            while(count > 0) {
-                count --;
-                len += ins.read() * (int)Math.pow(256, count);
-            } 
-        } catch(IOException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                ins.close();
-            } catch(IOException a) {
-                a.printStackTrace();
-            }
-        }
+        ByteBuffer b = ByteBuffer.allocate(4);
+        byte[] bytes = Arrays.copyOfRange(pack.getData(), 16, 20);
+        int len = b.wrap(bytes).getInt();
         len = len >>> 3;
         return len;        
     }
     public boolean isACK() {
         byte[] buf = pack.getData();
-        InputStream ins = new ByteArrayInputStream(buf);
-        int flag = 0;
-        try {
-            ins.skip(19); 
-            flag = ins.read();            
-        } catch(IOException e) {
-            System.out.print(e.getStackTrace());
-        } finally {
-            try {
-                ins.close();
-            } catch(IOException a) {
-                a.printStackTrace();
-            }
-        }
-        return (flag & 1) == 1;
+        return (buf[19] & 1) == 1;
     }
 
     public boolean isFIN() {
         byte[] buf = pack.getData();
-        InputStream ins = new ByteArrayInputStream(buf);
-        int flag = 0;
-        try{
-            ins.skip(19);      
-            flag = ins.read();
-        } catch(IOException e) {
-            System.out.print(e.getStackTrace());
-        } finally {
-            try {
-                ins.close();
-            } catch(IOException a) {
-                a.printStackTrace();
-            }
-        }
-        return ((flag & 2) >> 1) == 1;
+        return (buf[19] & 2) == 2;
     }
 
     public boolean isSYN() {
         byte[] buf = pack.getData();
-        InputStream ins = new ByteArrayInputStream(buf);
-        int flag = 0;
-        try {
-            ins.skip(19);       
-            flag = ins.read();            
-        } catch(IOException e) {
-            System.out.print(e.getStackTrace());
-        } finally {
-            try {
-                ins.close();
-            } catch(IOException a) {
-                a.printStackTrace();
-            }
-        }
-        return ((flag & 4) >> 2) == 1;
+        return (buf[19] & 4) == 4;
     }
     public int getChecksum() {
         int checkSum = 0;
@@ -312,7 +204,7 @@ class Packet {
 
     public static void main(String[] args) {
         Packet cur = new Packet(1000001);
-        cur.setSequencenumber(560000);
+        cur.setSequencenumber(5600);
         System.out.printf("sequence number is %d\n",cur.getSequencenumber());
         cur.setAcknumber(200);
         System.out.printf("Ack number is %d\n",cur.getAckmber());
@@ -320,11 +212,11 @@ class Packet {
         System.out.printf("Data length is %d\n", cur.getLength());
         cur.setChecksum();
         System.out.printf("Checksum number is %d\n",cur.getChecksum());
-        cur.setACK();
+        // cur.setACK();
         if(cur.isACK())
             System.out.printf("success set ACK\n");
 
-        // cur.setSYN();
+        cur.setSYN();
         if(cur.isSYN())
             System.out.printf("success set SYN\n");
 
@@ -332,9 +224,7 @@ class Packet {
         if(cur.isFIN())
             System.out.printf("success set FIN\n");
         long lll = 356909657;
-        cur.setTimestamp(lll);
-        System.out.println(System.nanoTime());
-        System.out.println(System.nanoTime());        
+        cur.setTimestamp(lll);     
         System.out.printf("Time stamp is %d\n", cur.getTimestamp());
     }
 }
