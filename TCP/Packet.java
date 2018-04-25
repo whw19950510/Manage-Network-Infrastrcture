@@ -100,13 +100,8 @@ class Packet {
             ins.skip(16);
             while(count > 0) {
                 count --;
-                if(count == 0) {
-                    // Last byte need to be erased
-                    int temp = (ins.read() >> 3);
-                    len += temp;
-                } else {
-                    len += ins.read() * (int)Math.pow(256, count);
-                }
+                len += ins.read() * (int)Math.pow(256, count);
+                
             } 
         } catch(IOException e) {
             e.printStackTrace();
@@ -117,6 +112,7 @@ class Packet {
                 a.printStackTrace();
             }
         }
+        len = len >>> 3;
         return len;        
     }
     public boolean isACK() {
@@ -321,7 +317,7 @@ class Packet {
         System.out.printf("sequence number is %d\n",cur.getSequencenumber());
         cur.setAcknumber(200);
         System.out.printf("Ack number is %d\n",cur.getAckmber());
-        cur.setLength(99);
+        cur.setLength(123);
         System.out.printf("Data length is %d\n", cur.getLength());
         cur.setChecksum();
         System.out.printf("Checksum number is %d\n",cur.getChecksum());
