@@ -68,26 +68,6 @@ class Packet {
         return b.wrap(bytes).getInt();        
     }
     public byte[] getData() {
-        // int data = 0;
-        // int count = 4;
-        // byte[] buf = pack.getData();
-        // InputStream ins = new ByteArrayInputStream(buf, 24, 4);
-        // try {
-        //     ins.skip(24);
-        //     while(count > 0) {
-        //         count --;            
-        //         data += ins.read() * (int)Math.pow(256, count);                
-        //     } 
-        // } catch(IOException e) {
-        //     e.printStackTrace();
-        // } finally {
-        //     try {
-        //         ins.close();
-        //     } catch(IOException a) {
-        //         a.printStackTrace();
-        //     }
-        // }
-        // return data;
         int len = this.getLength();     
         byte[] bytes = Arrays.copyOfRange(pack.getData(), 24, 24 + 8 * len);
         return bytes;    
@@ -161,10 +141,6 @@ class Packet {
         for (int i = 0; i < 2; ++i) {
             accumulation += 0xffff & bb.getShort();
         }
-        // pad to an even number of shorts
-        // if (buf.length % 2 > 0) {
-        //     accumulation += (bb.get() & 0xff) << 8;
-        // }
 
         accumulation = ((accumulation >> 16) & 0xffff)
                 + (accumulation & 0xffff);

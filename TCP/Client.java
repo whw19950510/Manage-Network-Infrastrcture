@@ -33,6 +33,7 @@ public class Client {
     private final double beta = 0.75;
     private volatile int curbufferSize;
     private volatile int curSequencenumber;
+    private File sendFile;
     private long filesize;
     private volatile double curTimeout;               // Estimate the timeout based on RTT time, each client has ony 1 single value based on the ACK received
     private double EDEV;
@@ -66,8 +67,8 @@ public class Client {
             e.printStackTrace();
         }
 
-        File file = new File(this.filename);
-        filesize = file.length();
+        sendFile = new File(this.filename);
+        filesize = sendFile.length();
     }
 
     public void connectionRequest() {
@@ -78,7 +79,7 @@ public class Client {
         connectionreq.setChecksum();
         connectionreq.setLength(0);
         sendPacket(connectionreq);
-        curSequencenumber = 1;              // The sequencenumber is set to 1
+        curSequencenumber = 1;                          // The sequencenumber is set to 1
         printoutInfo(sendtype, connectionreq.getTimestamp(), "S---", connectionreq.getSequencenumber(), connectionreq.getLength(), connectionreq.getAckmber());
     }
 
@@ -91,7 +92,7 @@ public class Client {
         try {
             File file = new File(this.filename);
             ins = new FileInputStream(file);
-            ins.skip(start);    // skip the first few bytes of the File
+            ins.skip(start);                            // skip the first few bytes of the File
             datalength = ins.read(payload, 0, len);     // Actual datalength reads into the buffer
             ins.close();
         } catch (FileNotFoundException e) {
@@ -127,7 +128,7 @@ public class Client {
         Packet recv = new Packet(0);
         // sendbuffer used as buffer for the received packet
         // Continuing sending out packets until the sliding window is full & wait for response
-        int datalength = mtu - 24;          // maximum data payload bytes
+        int datalength = mtu - 24;                      // maximum data payload bytes
         ScheduledExecutorService sendService = Executors.newSingleThreadScheduledExecutor();
         Runnable sendRunnable = new Runnable() {
             @Override
@@ -141,9 +142,8 @@ public class Client {
                     Packet datapac = generateDatapacket(curSequencenumber, datalength);
                     sendPacket(datapac);
                     sendBuffer.put(curSequencenumber, datapac);
-                    // unACK.put(curSequencenumber, datapac.getTimestamp());
                     curSequencenumber += datapac.getLength();
-                    curbufferSize += datapac.getLength();////////////////////sws is total size or the data payload size
+                    curbufferSize += 1;                   // sws is total number of packets in the sliding window
                     printoutInfo(sendtype, datapac.getTimestamp(), "---D", datapac.getSequencenumber(), datapac.getLength(), datapac.getAckmber());
                 }
             }
@@ -189,7 +189,7 @@ public class Client {
                 printoutInfo(recvtype, recv.getTimestamp(), "SA--", recv.getSequencenumber(), recv.getLength(), recv.getAckmber());                
                 Packet connectAck = new Packet(0);
                 connectAck.setSequencenumber(0);
-                connectAck.setAcknumber(recv.getSequencenumber() + 1);//??????????????????  header length? +++ acknumebr
+                connectAck.setAcknumber(recv.getSequencenumber() + 1);
                 connectAck.setSYN();
                 connectAck.setChecksum();
                 connectAck.setLength(0);
@@ -211,7 +211,7 @@ public class Client {
 
                 sendPacket(closeAck);
                 sendsocket.disconnect();
-                sendsocket.close();////////////////// ??? wait for 2RTT if nothing received then close the connection
+                sendsocket.close();
                 isEstablished = false;
                 printoutInfo(sendtype, closeAck.getTimestamp(), "-A--", closeAck.getSequencenumber(), closeAck.getLength(), closeAck.getAckmber());
                 
@@ -226,8 +226,8 @@ public class Client {
                     duplicateACK.put(acknumber, 1);
                     for(Integer cur:sendBuffer.keySet()) {
                         if(cur <= acknumber - 1) {
-                            curbufferSize -= sendBuffer.get(acknumber - 1).getLength();  // ???????-data length/ mtu /28 bytes                                                    
-                            sendBuffer.remove(cur);////////?????????? -- 24
+                            curbufferSize -= 1;  // move out 1 packet from the buffer                                                 
+                            sendBuffer.remove(cur);
                         }
                     }    
                 } else {
