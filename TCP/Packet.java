@@ -63,48 +63,34 @@ class Packet {
         return (buf[19] & 4) == 4;
     }
     public int getChecksum() {
-        int checkSum = 0;
-        int count = 2;
-        byte[] buf = pack.getData();
-        InputStream ins = new ByteArrayInputStream(buf);
-        try {
-            ins.skip(22);
-            while(count > 0) {
-                count --;
-                checkSum += ins.read() * (int)Math.pow(256, count);                
-            } 
-        } catch(IOException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                ins.close();
-            } catch(IOException a) {
-                a.printStackTrace();
-            }
-        }
-        return checkSum;        
+        ByteBuffer b = ByteBuffer.allocate(4);
+        byte[] bytes = Arrays.copyOfRange(pack.getData(), 20, 24);
+        return b.wrap(bytes).getInt();        
     }
-    public int getData() {
-        int data = 0;
-        int count = 4;
-        byte[] buf = pack.getData();
-        InputStream ins = new ByteArrayInputStream(buf, 24, 4);
-        try {
-            ins.skip(24);
-            while(count > 0) {
-                count --;            
-                data += ins.read() * (int)Math.pow(256, count);                
-            } 
-        } catch(IOException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                ins.close();
-            } catch(IOException a) {
-                a.printStackTrace();
-            }
-        }
-        return data;        
+    public byte[] getData() {
+        // int data = 0;
+        // int count = 4;
+        // byte[] buf = pack.getData();
+        // InputStream ins = new ByteArrayInputStream(buf, 24, 4);
+        // try {
+        //     ins.skip(24);
+        //     while(count > 0) {
+        //         count --;            
+        //         data += ins.read() * (int)Math.pow(256, count);                
+        //     } 
+        // } catch(IOException e) {
+        //     e.printStackTrace();
+        // } finally {
+        //     try {
+        //         ins.close();
+        //     } catch(IOException a) {
+        //         a.printStackTrace();
+        //     }
+        // }
+        // return data;
+        int len = this.getLength();     
+        byte[] bytes = Arrays.copyOfRange(pack.getData(), 24, 24 + 8 * len);
+        return bytes;    
     }
 
      // Set function for respective fields
@@ -208,7 +194,7 @@ class Packet {
         System.out.printf("sequence number is %d\n",cur.getSequencenumber());
         cur.setAcknumber(200);
         System.out.printf("Ack number is %d\n",cur.getAckmber());
-        cur.setLength(1000001);
+        cur.setLength(10);
         System.out.printf("Data length is %d\n", cur.getLength());
         cur.setChecksum();
         System.out.printf("Checksum number is %d\n",cur.getChecksum());
@@ -226,5 +212,8 @@ class Packet {
         long lll = 356909657;
         cur.setTimestamp(lll);     
         System.out.printf("Time stamp is %d\n", cur.getTimestamp());
+        byte[] b = cur.getData();
+        ByteBuffer bb = ByteBuffer.wrap(b);
+        System.out.printf("Time data is %d\n", bb.getInt());
     }
 }
