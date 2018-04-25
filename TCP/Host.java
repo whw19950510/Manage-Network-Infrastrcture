@@ -24,7 +24,7 @@ public class Host {
         this.mtu = MTU;
         this.sws = sws;
 
-        record = new PriorityQueue<Integer>((a, b) -> a.compareTo(b));
+        record = new PriorityQueue<Integer>((a, b) -> a - b);
         receiveBuffer = new HashMap<Integer, Packet>();
         seqExpect = 0;
         selfSeq = 0;
@@ -34,14 +34,11 @@ public class Host {
             a.printStackTrace();
         } catch(SocketException e) {
             System.out.print(e.getStackTrace());
-        } finally {
-            receiveSocket.close();
-            System.exit(1);
-        }
+        } 
         recvFile = new File("recv.txt");
     }
     public void runHost() {
-            byte[] receiveData = new byte[28];
+            byte[] receiveData = new byte[mtu];
             DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 
             while(true) {
@@ -61,7 +58,7 @@ public class Host {
                 if(dealpack.isSYN()) {
                     if(dealpack.getSequencenumber() != 0)           // this is the first packet need to be acknowledged
                         continue;
-                    Packet connectionACK = new Packet();
+                    Packet connectionACK = new Packet(0);
                     int clientseq = dealpack.getSequencenumber();
                     long clientTime = dealpack.getTimestamp();
                     connectionACK.setAcknumber(clientseq + 1);
@@ -73,65 +70,70 @@ public class Host {
                     connectionACK.setChecksum();
                     connectionACK.setLength(0);
                     // Send packet to where this packet come from, extract from the receiving packets
-                    connectionACK.getPacket().setAddress(receivePacket.getAddress());
-                    connectionACK.getPacket().setPort(receivePacket.getPort());
+                    connectionACK.getPacket().setSocketAddress(new InetSocketAddress(receivePacket.getAddress(), receivePacket.getPort()));
                     sendACKpacket(connectionACK);
                 } else if(dealpack.isACK()) {
                     // receive the connection establish packet
                     continue;
                 } else if(dealpack.isFIN()) {
                     // The packet is for connection close request of client side
-                    Packet finack = new Packet();
+                    Packet finack = new Packet(0);
                     int clientSeq = dealpack.getSequencenumber();
                     finack.setACK();
+                    finack.setSequencenumber(0);
                     finack.setChecksum();
                     finack.setLength(0);
                     finack.setTimestamp(dealpack.getTimestamp());
                     finack.setSequencenumber(selfSeq);
-                    selfSeq ++;
                     finack.setAcknumber(clientSeq + 1);
+
+                    Packet finserver = new Packet(0);
+                    finserver.setSequencenumber(selfSeq);
+                    selfSeq++;
+                    finserver.setACK();
+                    finserver.setChecksum();
+                    finserver.setLength(0);
+                    finserver.setTimestamp(System.nanoTime());
+                    finserver.setAcknumber(clientSeq + 1);
+                    sendACKpacket(finack);
+                    sendACKpacket(finserver);
                 } else {
                     // Datasegment to be received
                     int clientseq = dealpack.getSequencenumber();
                     // Not in sequence packet
-                    if(clientseq != seqExpect) {
-                        Packet hostack = new Packet();                                            
-                        record.offer(clientseq);
+                    if(clientseq > seqExpect) {
+                        Packet hostack = new Packet(0);                                            
+                        record.offer(clientseq);                    // if sws < record.size().....
                         receiveBuffer.put(clientseq, dealpack);
+                        hostack.setSequencenumber(0);
                         hostack.setAcknumber(seqExpect);          // Retransmit this ack expected for the continuous packet 
                         hostack.setTimestamp(dealpack.getTimestamp());
                         hostack.setACK();
                         hostack.setLength(0);
                         hostack.setChecksum();
                         sendACKpacket(hostack);
-                    } else {
-                        writeToFile(dealpack);
-                        Packet curack = new Packet();                                                
-                        curack.setAcknumber(seqExpect);
-                        curack.setTimestamp(dealpack.getTimestamp());
-                        curack.setACK();
-                        curack.setLength(0);
-                        curack.setChecksum();
-                        sendACKpacket(curack);
-
-                        while(record.size() > 0 && record.peek() > clientseq) {
-                            Packet hostack = new Packet();                                                
-                            long bufferpacseq = record.poll();
+                    } else {  
+                        seqExpect += dealpack.getLength();
+                        writeToFile(dealpack);                        
+                        while (record.size() > 0 && record.peek() <= seqExpect) {
+                            int bufferpacseq = record.poll();
+                            int templen = receiveBuffer.get(bufferpacseq).getLength();
                             Packet formerBuffer = receiveBuffer.get(bufferpacseq);
-                            writeToFile(formerBuffer);
-                            hostack.setAcknumber(formerBuffer.getSequencenumber() + 1);
-                            hostack.setTimestamp(formerBuffer.getTimestamp());
-                            hostack.setACK();
-                            hostack.setLength(0);
-                            hostack.setChecksum();
-                            receiveBuffer.remove(bufferpacseq);                            
-                            sendACKpacket(hostack);
+                            writeToFile(formerBuffer);    
+                            seqExpect += templen;
+                            receiveBuffer.remove(bufferpacseq);
                         }
-                    }   
+                        Packet hostack = new Packet(0);                                                
+                        hostack.setAcknumber(seqExpect);
+                        hostack.setTimestamp(dealpack.getTimestamp());
+                        hostack.setACK();
+                        hostack.setLength(0);
+                        hostack.setChecksum();
+                        sendACKpacket(hostack);
+                    }
                 }
             }
         }
-
     // Get & Set methods
     public void setMtu(int MTU) {
         this.mtu = MTU;
