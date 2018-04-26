@@ -10,6 +10,7 @@ class Packet {
     Packet(int datalength) {
         byte[] buf = new byte[24 + datalength];
         pack = new DatagramPacket(buf, buf.length);
+        this.setLength(datalength);
         resendTime = 0;
     }
 
@@ -69,8 +70,11 @@ class Packet {
     }
     public byte[] getData() {
         int len = this.getLength();     
-        byte[] bytes = Arrays.copyOfRange(pack.getData(), 24, 24 + 8 * len);
-        return bytes;    
+        byte[] datapayload = new byte[len];
+        for(int i = 0; i < len; i++) {
+            datapayload[i] = (pack.getData())[i + 24];
+    }
+        return datapayload;    
     }
 
      // Set function for respective fields
@@ -151,13 +155,10 @@ class Packet {
 
     public void setData(byte[] data) {
         byte[] buf = pack.getData();
-        byte[] newBuf = new byte[data.length + 24];
-        for (int i = 0; i < 24; i++) {
-            newBuf[i] = buf[i];
-        }
         for (int i = 0; i < data.length; i++) {
             buf[i + 24] = data[i];
         }
+        pack.setData(buf);
     }
 
     public void setResendTime(int resendTime) {
@@ -165,12 +166,12 @@ class Packet {
     }
 
     // public static void main(String[] args) {
-    //     Packet cur = new Packet(1000001);
+    //     Packet cur = new Packet(50);
     //     cur.setSequencenumber(5600);
     //     System.out.printf("sequence number is %d\n",cur.getSequencenumber());
     //     cur.setAcknumber(200);
     //     System.out.printf("Ack number is %d\n",cur.getAckmber());
-    //     cur.setLength(10);
+    //     cur.setLength(50);
     //     System.out.printf("Data length is %d\n", cur.getLength());
     //     cur.setChecksum();
     //     System.out.printf("Checksum number is %d\n",cur.getChecksum());

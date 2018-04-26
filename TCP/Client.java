@@ -40,8 +40,6 @@ public class Client {
     
     private Map<Integer, Integer>duplicateACK;  // statistics of times of ACK packets received
 
-    private volatile boolean isEstablished = false;
-
 
     private final String recvtype = "rcv";
     private final String sendtype = "snd";
@@ -89,8 +87,7 @@ public class Client {
         int datalength = 0;
         InputStream ins = null;
         try {
-            File file = new File(this.filename);
-            ins = new FileInputStream(file);
+            ins = new FileInputStream(sendFile);
             ins.skip(start);                            // skip the first few bytes of the File
             datalength = ins.read(payload, 0, len);     // Actual datalength reads into the buffer
             ins.close();
@@ -107,6 +104,7 @@ public class Client {
         }
         // the last packet which should be less than MTU size
         if(datalength < len) {
+            datapac = new Packet(datalength);
             byte[] newpayload = new byte[datalength];
             for (int i = 0; i < datalength; i++) {
                 newpayload[i] = payload[i];
@@ -127,18 +125,17 @@ public class Client {
         Packet recv = new Packet(0);
         // sendbuffer used as buffer for the received packet
         // Continuing sending out packets until the sliding window is full & wait for response
-        int datalength = mtu - 24;                      // maximum data payload bytes
         ScheduledExecutorService sendService = Executors.newSingleThreadScheduledExecutor();
         Runnable sendRunnable = new Runnable() {
             @Override
             public void run() {
+                int datalength = mtu - 24;                      // maximum data payload bytes
                 // Continue to send out packets until the send Buffer becomes full                  
                 while(curbufferSize < sws && curSequencenumber < filesize) {
-                    if(isEstablished == false && (System.nanoTime() - sendBuffer.get(0).getTimestamp() > curTimeout)) {
+                    if(System.nanoTime() - sendBuffer.get(0).getTimestamp() > curTimeout) {
                         connectionRequest();
                         continue;                        
-                    } else if(isEstablished == false)
-                        continue;
+                    }
                     Packet datapac = generateDatapacket(curSequencenumber, datalength);
                     sendPacket(datapac);
                     sendBuffer.put(curSequencenumber, datapac);
@@ -148,7 +145,6 @@ public class Client {
                 }
             }
         };
-        sendService.scheduleAtFixedRate(sendRunnable, 0, 1, TimeUnit.NANOSECONDS); 
         
         // Retransmission policy: Timeout of packet / duplicate ACK is 3 times
         Runnable runnable = new Runnable() {
@@ -190,14 +186,14 @@ public class Client {
                 Packet connectAck = new Packet(0);
                 connectAck.setSequencenumber(0);
                 connectAck.setAcknumber(recv.getSequencenumber() + 1);
-                connectAck.setSYN();
+                connectAck.setACK();
                 connectAck.setChecksum();
                 connectAck.setLength(0);
                 connectAck.setTimestamp(System.nanoTime());
 
                 sendBuffer.remove(0);
                 sendPacket(connectAck);
-                isEstablished = true;
+                sendService.scheduleAtFixedRate(sendRunnable, 0, 1, TimeUnit.NANOSECONDS); 
                 printoutInfo(sendtype, connectAck.getTimestamp(), "-A--", connectAck.getSequencenumber(), connectAck.getLength(), connectAck.getAckmber());                
             }
             // Receiver side's close request, will close the connection finally
@@ -213,7 +209,6 @@ public class Client {
 
                 sendPacket(closeAck);
                 sendsocket.close();
-                isEstablished = false;
                 printoutInfo(sendtype, closeAck.getTimestamp(), "-A--", closeAck.getSequencenumber(), closeAck.getLength(), closeAck.getAckmber());
                 
                 System.exit(0);

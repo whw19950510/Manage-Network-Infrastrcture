@@ -27,7 +27,7 @@ class TCPend {
                 curClient.connectionRequest();
                 curClient.runClient();
             } else {
-                System.out.println("Usage for client: java TCPend -p <port> -s <remote-IP> -a <remote-port> –f <file name> -m <mtu> -c <sws>");
+                System.out.println("Usage for client: java TCPend -p <port> -s <remote-IP> -a <remote-port> -f <file name> -m <mtu> -c <sws>");
             } 
         } else if(args.length == 6) {
             if(args[0].equals("-p") && args[2].equals("-m") && args[4].equals("-c")) {

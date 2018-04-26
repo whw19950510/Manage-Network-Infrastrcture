@@ -182,8 +182,8 @@ public class Host {
     public void writeToFile(Packet dataseg) {
         OutputStream outstr = null;
         try {
-            outstr = new FileOutputStream(recvFile);
-            outstr.write(dataseg.getPacket().getData(), 24, dataseg.getLength());
+            outstr = new FileOutputStream(recvFile, true);
+            outstr.write(dataseg.getPacket().getData(), 0, dataseg.getLength());
         }  catch(IOException e) {
             e.printStackTrace();
         } finally {
