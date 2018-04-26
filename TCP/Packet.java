@@ -164,32 +164,32 @@ class Packet {
         this.resendTime = resendTime;
     }
 
-    public static void main(String[] args) {
-        Packet cur = new Packet(1000001);
-        cur.setSequencenumber(5600);
-        System.out.printf("sequence number is %d\n",cur.getSequencenumber());
-        cur.setAcknumber(200);
-        System.out.printf("Ack number is %d\n",cur.getAckmber());
-        cur.setLength(10);
-        System.out.printf("Data length is %d\n", cur.getLength());
-        cur.setChecksum();
-        System.out.printf("Checksum number is %d\n",cur.getChecksum());
-        // cur.setACK();
-        if(cur.isACK())
-            System.out.printf("success set ACK\n");
+    // public static void main(String[] args) {
+    //     Packet cur = new Packet(1000001);
+    //     cur.setSequencenumber(5600);
+    //     System.out.printf("sequence number is %d\n",cur.getSequencenumber());
+    //     cur.setAcknumber(200);
+    //     System.out.printf("Ack number is %d\n",cur.getAckmber());
+    //     cur.setLength(10);
+    //     System.out.printf("Data length is %d\n", cur.getLength());
+    //     cur.setChecksum();
+    //     System.out.printf("Checksum number is %d\n",cur.getChecksum());
+    //     // cur.setACK();
+    //     if(cur.isACK())
+    //         System.out.printf("success set ACK\n");
 
-        cur.setSYN();
-        if(cur.isSYN())
-            System.out.printf("success set SYN\n");
+    //     cur.setSYN();
+    //     if(cur.isSYN())
+    //         System.out.printf("success set SYN\n");
 
-        cur.setFIN();
-        if(cur.isFIN())
-            System.out.printf("success set FIN\n");
-        long lll = 356909657;
-        cur.setTimestamp(lll);     
-        System.out.printf("Time stamp is %d\n", cur.getTimestamp());
-        byte[] b = cur.getData();
-        ByteBuffer bb = ByteBuffer.wrap(b);
-        System.out.printf("Time data is %d\n", bb.getInt());
-    }
+    //     cur.setFIN();
+    //     if(cur.isFIN())
+    //         System.out.printf("success set FIN\n");
+    //     long lll = 356909657;
+    //     cur.setTimestamp(lll);     
+    //     System.out.printf("Time stamp is %d\n", cur.getTimestamp());
+    //     byte[] b = cur.getData();
+    //     ByteBuffer bb = ByteBuffer.wrap(b);
+    //     System.out.printf("Time data is %d\n", bb.getInt());
+    // }
 }

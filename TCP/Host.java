@@ -27,25 +27,24 @@ public class Host {
         this.mtu = MTU;
         this.sws = sws;
 
-        record = new PriorityQueue<Integer>((a, b) -> a - b);
+        record = new PriorityQueue<Integer>();
         receiveBuffer = new HashMap<Integer, Packet>();
         seqExpect = 0;
         selfSeq = 0;
         try {
-            receiveSocket = new DatagramSocket(port, InetAddress.getLocalHost()); 
-        } catch(UnknownHostException a) {
-            a.printStackTrace();
+            receiveSocket = new DatagramSocket(port); 
         } catch(SocketException e) {
             System.out.print(e.getStackTrace());
         } 
         recvFile = new File("recv.txt");
     }
     public void runHost() {
-        byte[] receiveData = new byte[mtu];
-        DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-
+        DatagramPacket receivePacket = null;
+        byte[] receiveData = null;
         while(true) {
             try {
+                receiveData = new byte[mtu];
+                receivePacket = new DatagramPacket(receiveData, receiveData.length);    
                 receiveSocket.receive(receivePacket);  
             } catch(IOException e) {
                 e.printStackTrace();
@@ -61,13 +60,14 @@ public class Host {
             clientIP = dealpack.getPacket().getAddress();
             clientPort = dealpack.getPacket().getPort();
             if(dealpack.isSYN()) {
+                printoutInfo(recvtype, dealpack.getTimestamp(), "S---", dealpack.getSequencenumber(), dealpack.getLength(), dealpack.getAckmber());                
                 if(dealpack.getSequencenumber() != 0)            // this is the first packet need to be acknowledged
                     continue;
                 Packet connectionACK = new Packet(0);
                 int clientseq = dealpack.getSequencenumber();
                 long clientTime = dealpack.getTimestamp();
-                connectionACK.setAcknumber(clientseq + 1);
-                seqExpect = clientseq + 1;                       // record the next data byte to be received
+                seqExpect = clientseq + 1;                       // record the next data byte to be received                
+                connectionACK.setAcknumber(seqExpect);
                 connectionACK.setSYN();
                 connectionACK.setSequencenumber(selfSeq);        // Initial sequence number for Host side
                 selfSeq++;
@@ -76,7 +76,6 @@ public class Host {
                 connectionACK.setLength(0);
                 // Send packet to where this packet come from, extract from the receiving packets
                 sendACKpacket(connectionACK);
-                printoutInfo(recvtype, dealpack.getTimestamp(), "S---", dealpack.getSequencenumber(), dealpack.getLength(), dealpack.getAckmber());
                 printoutInfo(sendtype, connectionACK.getTimestamp(), "SA--", connectionACK.getSequencenumber(), connectionACK.getLength(), connectionACK.getAckmber());
             } else if(dealpack.isACK()) {
                 // receive the connection establish packet

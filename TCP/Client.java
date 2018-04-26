@@ -5,7 +5,6 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.security.acl.Acl;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -53,14 +52,13 @@ public class Client {
         this.filename = filename;
         this.mtu = mtu;
         this.sws = sws;
-        // unACK = new ConcurrentHashMap<Integer, Long>();
         duplicateACK = new ConcurrentHashMap<Integer, Integer>();
+        sendBuffer = new ConcurrentHashMap<Integer, Packet>();
         curbufferSize = 0;
         curTimeout = 5*1000000000;
         try {
             this.remoteIP = InetAddress.getByName(remoteIP);
-            sendsocket = new DatagramSocket(port, InetAddress.getLocalHost());            
-            sendsocket.connect(this.remoteIP, serverport);
+            sendsocket = new DatagramSocket(port);            
         } catch(SocketException e) {
             e.printStackTrace();
         } catch(UnknownHostException e) {
@@ -81,6 +79,7 @@ public class Client {
         sendPacket(connectionreq);
         curSequencenumber = 1;                          // The sequencenumber is set to 1
         printoutInfo(sendtype, connectionreq.getTimestamp(), "S---", connectionreq.getSequencenumber(), connectionreq.getLength(), connectionreq.getAckmber());
+        sendBuffer.put(0, connectionreq);
     }
 
     // write the file contents into byte array and encapsulate into Packet
@@ -135,10 +134,11 @@ public class Client {
             public void run() {
                 // Continue to send out packets until the send Buffer becomes full                  
                 while(curbufferSize < sws && curSequencenumber < filesize) {
-                    if(isEstablished == false) {
+                    if(isEstablished == false && (System.nanoTime() - sendBuffer.get(0).getTimestamp() > curTimeout)) {
                         connectionRequest();
                         continue;                        
-                    }
+                    } else if(isEstablished == false)
+                        continue;
                     Packet datapac = generateDatapacket(curSequencenumber, datalength);
                     sendPacket(datapac);
                     sendBuffer.put(curSequencenumber, datapac);
@@ -193,7 +193,9 @@ public class Client {
                 connectAck.setSYN();
                 connectAck.setChecksum();
                 connectAck.setLength(0);
+                connectAck.setTimestamp(System.nanoTime());
 
+                sendBuffer.remove(0);
                 sendPacket(connectAck);
                 isEstablished = true;
                 printoutInfo(sendtype, connectAck.getTimestamp(), "-A--", connectAck.getSequencenumber(), connectAck.getLength(), connectAck.getAckmber());                
@@ -210,7 +212,6 @@ public class Client {
                 closeAck.setTimestamp(System.nanoTime());
 
                 sendPacket(closeAck);
-                sendsocket.disconnect();
                 sendsocket.close();
                 isEstablished = false;
                 printoutInfo(sendtype, closeAck.getTimestamp(), "-A--", closeAck.getSequencenumber(), closeAck.getLength(), closeAck.getAckmber());
