@@ -71,6 +71,8 @@ public class Client {
         Packet connectionreq = null;
         if(sendBuffer.containsKey(connectionreq) == false) {
             connectionreq = new Packet(0);
+        } else {
+            connectionreq = sendBuffer.get(0);
         }
         connectionreq.setSequencenumber(0);
         connectionreq.setTimestamp(System.nanoTime());
@@ -92,7 +94,7 @@ public class Client {
         try {
             ins = new FileInputStream(sendFile);
             ins.skip(start - 1);                            // skip the first few bytes of the File
-            datalength = ins.read(payload, 0, len);     // Actual datalength reads into the buffer
+            datalength = ins.read(payload, 0, len);         // Actual datalength reads into the buffer
             ins.close();
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -157,7 +159,7 @@ public class Client {
         };
         
         // Retransmission policy: Timeout of packet / duplicate ACK is 3 times
-        Runnable runnable = new Runnable() {
+        Runnable RentransRunnable = new Runnable() {
 			public void run() {
 				// update the timeout value for each ConcurrentHashMap Entry, if timeout resend current packet
 				for(Integer cur:sendBuffer.keySet()) {
@@ -181,7 +183,7 @@ public class Client {
 			}
 		};
         ScheduledExecutorService manipulateTimeout = Executors.newSingleThreadScheduledExecutor();
-        manipulateTimeout.scheduleAtFixedRate(runnable, 0, 1, TimeUnit.NANOSECONDS);
+        manipulateTimeout.scheduleAtFixedRate(RentransRunnable, 0, 1, TimeUnit.NANOSECONDS);
         // Main thread keeps receiving packets 
         while(true) {
             try {
@@ -229,7 +231,6 @@ public class Client {
             }
             else if(recv.isACK()) {
                 printoutInfo(recvtype, recv.getTimestamp(), "-A--", recv.getSequencenumber(), recv.getLength(), recv.getAckmber());                
-                
                 calculateTimeout(recv);
                 int acknumber = recv.getAckmber();
                 if(duplicateACK.containsKey(acknumber) == false) {
@@ -270,7 +271,7 @@ public class Client {
     }
 
     public void calculateTimeout(Packet ack) {
-        if(ack.getSequencenumber() == 0) {
+        if(ack.getAckmber() == 2) {
             ERTT = System.nanoTime() - ack.getTimestamp();
             EDEV = 0;
             curTimeout = 2 * ERTT;

@@ -72,8 +72,7 @@ public class Host {
                 seqExpect = clientseq + 1;                       // record the next data byte to be received                
                 connectionACK.setAcknumber(seqExpect);
                 connectionACK.setSYN();
-                connectionACK.setSequencenumber(selfSeq);        // Initial sequence number for Host side
-                selfSeq++;
+                connectionACK.setSequencenumber(0);        // Initial sequence number for Host side
                 connectionACK.setTimestamp(clientTime);
                 connectionACK.setChecksum();
                 connectionACK.setLength(0);
@@ -99,15 +98,13 @@ public class Host {
                 finack.setChecksum();
                 finack.setLength(0);
                 finack.setTimestamp(dealpack.getTimestamp());
-                finack.setSequencenumber(selfSeq);
                 finack.setAcknumber(clientSeq + 1);
                 sendACKpacket(finack);
                 
                 printoutInfo(sendtype, finack.getTimestamp(), "-A--", finack.getSequencenumber(), finack.getLength(), finack.getAckmber());
                 
                 Packet finserver = new Packet(0);
-                finserver.setSequencenumber(selfSeq);
-                selfSeq++;
+                finserver.setSequencenumber(1);
                 finserver.setACK();
                 finserver.setFIN();
                 finserver.setChecksum();
@@ -135,17 +132,27 @@ public class Host {
                     hostack.setLength(0);
                     hostack.setChecksum();
                     sendACKpacket(hostack);
-                } else {  
+                } else if(clientseq == seqExpect) {  
                     seqExpect += dealpack.getLength();
                     writeToFile(dealpack);                        
                     while (record.size() > 0 && record.peek() <= seqExpect) {
                         int bufferpacseq = record.poll();
-                        int templen = receiveBuffer.get(bufferpacseq).getLength();
+                        if(receiveBuffer.containsKey(bufferpacseq) == false) {
+                            continue;
+                        }
                         Packet formerBuffer = receiveBuffer.get(bufferpacseq);
+                        int templen = formerBuffer.getLength();
                         writeToFile(formerBuffer);    
                         seqExpect += templen;
                         receiveBuffer.remove(bufferpacseq);
                     }
+                    hostack.setAcknumber(seqExpect);
+                    hostack.setTimestamp(dealpack.getTimestamp());
+                    hostack.setACK();
+                    hostack.setLength(0);
+                    hostack.setChecksum();
+                    sendACKpacket(hostack);
+                } else {
                     hostack.setAcknumber(seqExpect);
                     hostack.setTimestamp(dealpack.getTimestamp());
                     hostack.setACK();

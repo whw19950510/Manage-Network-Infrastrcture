@@ -9,3 +9,6 @@ Using threadpool for packet sending and check whether the timeout value exceeds 
 ## write char array into file 
 decoration methods
 Writer fos = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("filename.txt"), "utf-8")));
+
+## Runtime exception in multithreads
+Need to catch all exception in multithreads, in the another thread created the JVM will not report the exception to you, but the thread get supresssed / blocked when meet with exception.
