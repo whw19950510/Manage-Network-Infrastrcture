@@ -91,7 +91,7 @@ public class Client {
         InputStream ins = null;
         try {
             ins = new FileInputStream(sendFile);
-            ins.skip(start);                            // skip the first few bytes of the File
+            ins.skip(start - 1);                            // skip the first few bytes of the File
             datalength = ins.read(payload, 0, len);     // Actual datalength reads into the buffer
             ins.close();
         } catch (FileNotFoundException e) {
@@ -135,20 +135,21 @@ public class Client {
                 int datalength = mtu - 24;                      // maximum data payload bytes
                 // Continue to send out packets until the send Buffer becomes full                  
                 while(curbufferSize < sws && curSequencenumber < filesize) {
-                    Packet datapac = generateDatapacket(curSequencenumber - 1, datalength);
+                    Packet datapac = generateDatapacket(curSequencenumber, datalength);
                     sendPacket(datapac);
                     sendBuffer.put(curSequencenumber, datapac);
                     curSequencenumber += datapac.getLength();
                     curbufferSize += 1;                   // sws is total number of packets in the sliding window
                     printoutInfo(sendtype, datapac.getTimestamp(), "---D", datapac.getSequencenumber(), datapac.getLength(), datapac.getAckmber());
                 }
-                if(curSequencenumber == filesize + 1) {
+                if(curSequencenumber == filesize + 1 && sendBuffer.size() == 0) {
                     Packet connclose = new Packet(0);
                     connclose.setFIN();
                     connclose.setSequencenumber(curSequencenumber);
                     connclose.setTimestamp(System.nanoTime());
                     connclose.setChecksum();
                     sendBuffer.put(curSequencenumber, connclose);
+                    curSequencenumber++;
                     sendPacket(connclose);
                     printoutInfo(sendtype, connclose.getTimestamp(), "--F-", connclose.getSequencenumber(), connclose.getLength(), connclose.getAckmber());
                 }
