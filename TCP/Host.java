@@ -22,6 +22,8 @@ public class Host {
     private final String recvtype = "rcv";
     private final String sendtype = "snd";
 
+    private boolean canClose;
+
     public Host(int port, int MTU, int sws) {
         this.port = port;
         this.mtu = MTU;
@@ -31,6 +33,7 @@ public class Host {
         receiveBuffer = new HashMap<Integer, Packet>();
         seqExpect = 0;
         selfSeq = 0;
+        canClose = false;
         try {
             receiveSocket = new DatagramSocket(port); 
         } catch(SocketException e) {
@@ -78,6 +81,11 @@ public class Host {
                 sendACKpacket(connectionACK);
                 printoutInfo(sendtype, connectionACK.getTimestamp(), "SA--", connectionACK.getSequencenumber(), connectionACK.getLength(), connectionACK.getAckmber());
             } else if(dealpack.isACK()) {
+                if(canClose) {
+                    printoutInfo(recvtype, dealpack.getTimestamp(), "-A--", dealpack.getSequencenumber(), dealpack.getLength(), dealpack.getAckmber());
+                    receiveSocket.close();
+                    System.exit(0);
+                }
                 // receive the connection establish packet
                 printoutInfo(recvtype, dealpack.getTimestamp(), "-A--", dealpack.getSequencenumber(), dealpack.getLength(), dealpack.getAckmber());
                 continue;
@@ -101,12 +109,13 @@ public class Host {
                 finserver.setSequencenumber(selfSeq);
                 selfSeq++;
                 finserver.setACK();
+                finserver.setFIN();
                 finserver.setChecksum();
                 finserver.setLength(0);
                 finserver.setTimestamp(System.nanoTime());
                 finserver.setAcknumber(clientSeq + 1);
                 sendACKpacket(finserver);
-
+                canClose = true;
                 printoutInfo(sendtype, finserver.getTimestamp(), "-AF-", finserver.getSequencenumber(), finserver.getLength(), finserver.getAckmber());
             } else {
                 printoutInfo(recvtype, dealpack.getTimestamp(), "---D", dealpack.getSequencenumber(), dealpack.getLength(), dealpack.getAckmber());                    
@@ -180,18 +189,13 @@ public class Host {
     }
 
     public void writeToFile(Packet dataseg) {
-        OutputStream outstr = null;
         try {
-            outstr = new FileOutputStream(recvFile, true);
-            outstr.write(dataseg.getPacket().getData(), 0, dataseg.getLength());
-        }  catch(IOException e) {
+            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(recvFile, true)));
+            out.print(new String(dataseg.getData()));
+            out.flush();
+            out.close();
+        } catch(IOException e) {
             e.printStackTrace();
-        } finally {
-            try {
-                outstr.close();                
-            } catch(IOException e) {
-                e.printStackTrace();
-            }
         }
     }
 

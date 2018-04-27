@@ -68,7 +68,10 @@ public class Client {
     }
 
     public void connectionRequest() {
-        Packet connectionreq = new Packet(0);
+        Packet connectionreq = null;
+        if(sendBuffer.containsKey(connectionreq) == false) {
+            connectionreq = new Packet(0);
+        }
         connectionreq.setSequencenumber(0);
         connectionreq.setTimestamp(System.nanoTime());
         connectionreq.setSYN();
@@ -132,16 +135,22 @@ public class Client {
                 int datalength = mtu - 24;                      // maximum data payload bytes
                 // Continue to send out packets until the send Buffer becomes full                  
                 while(curbufferSize < sws && curSequencenumber < filesize) {
-                    if(System.nanoTime() - sendBuffer.get(0).getTimestamp() > curTimeout) {
-                        connectionRequest();
-                        continue;                        
-                    }
-                    Packet datapac = generateDatapacket(curSequencenumber, datalength);
+                    Packet datapac = generateDatapacket(curSequencenumber - 1, datalength);
                     sendPacket(datapac);
                     sendBuffer.put(curSequencenumber, datapac);
                     curSequencenumber += datapac.getLength();
                     curbufferSize += 1;                   // sws is total number of packets in the sliding window
                     printoutInfo(sendtype, datapac.getTimestamp(), "---D", datapac.getSequencenumber(), datapac.getLength(), datapac.getAckmber());
+                }
+                if(curSequencenumber == filesize + 1) {
+                    Packet connclose = new Packet(0);
+                    connclose.setFIN();
+                    connclose.setSequencenumber(curSequencenumber);
+                    connclose.setTimestamp(System.nanoTime());
+                    connclose.setChecksum();
+                    sendBuffer.put(curSequencenumber, connclose);
+                    sendPacket(connclose);
+                    printoutInfo(sendtype, connclose.getTimestamp(), "--F-", connclose.getSequencenumber(), connclose.getLength(), connclose.getAckmber());
                 }
             }
         };
@@ -153,6 +162,10 @@ public class Client {
 				for(Integer cur:sendBuffer.keySet()) {
                     if(System.nanoTime() - sendBuffer.get(cur).getTimestamp() > curTimeout) {
                         Packet timeoutpac = sendBuffer.get(cur);
+                        if(timeoutpac.isSYN()) {
+                            connectionRequest();
+                            continue;
+                        }
                         timeoutpac.setResendTime(timeoutpac.getResendTime() + 1);
                         // if the resend time exceed maximum time, lost connections just exit sending
                         if(sendBuffer.get(cur).getResendTime() > Client.Maximum_Retransmission) {
