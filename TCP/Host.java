@@ -15,6 +15,8 @@ public class Host {
 
     private int selfSeq = 0;
     private File recvFile = null;
+    private String recvFileName = null;
+ 
 
     private int clientPort;
     private InetAddress clientIP;
@@ -23,6 +25,12 @@ public class Host {
     private final String sendtype = "snd";
 
     private boolean canClose;
+
+    private int dataRecv;
+    private int pktRecv;
+    private int pktDrop;
+    private int seqDiscard;
+    private int cksumDiscard;
 
     public Host(int port, int MTU, int sws) {
         this.port = port;
@@ -39,7 +47,10 @@ public class Host {
         } catch(SocketException e) {
             System.out.print(e.getStackTrace());
         } 
-        recvFile = new File("recv.txt");
+        dataRecv = 0;
+        pktRecv = 0;
+        seqDiscard = 0;
+        cksumDiscard = 0;
     }
     public void runHost() {
         DatagramPacket receivePacket = null;
@@ -53,11 +64,15 @@ public class Host {
                 e.printStackTrace();
             }
             Packet dealpack = new Packet(receivePacket);
+            dataRecv += dealpack.getLength();
+            pktRecv++;
             // Check for checksum first
             int orichecksum = dealpack.getChecksum();
             dealpack.setChecksum();
-            if(dealpack.getChecksum() != orichecksum)
+            if(dealpack.getChecksum() != orichecksum) {
+                cksumDiscard++;
                 continue;
+            }
             // Construct the packet to be dealed wtith
             // The packet is an connection creation request
             clientIP = dealpack.getPacket().getAddress();
@@ -69,6 +84,10 @@ public class Host {
                 Packet connectionACK = new Packet(0);
                 int clientseq = dealpack.getSequencenumber();
                 long clientTime = dealpack.getTimestamp();
+                byte[] datapayload = dealpack.getData();
+                recvFileName = new String(datapayload);
+                recvFileName = "recv" + recvFileName;
+                recvFile = new File(recvFileName);
                 seqExpect = clientseq + 1;                       // record the next data byte to be received                
                 connectionACK.setAcknumber(seqExpect);
                 connectionACK.setSYN();
@@ -83,6 +102,10 @@ public class Host {
                 if(canClose) {
                     printoutInfo(recvtype, dealpack.getTimestamp(), "-A--", dealpack.getSequencenumber(), dealpack.getLength(), dealpack.getAckmber());
                     receiveSocket.close();
+                    System.out.println("Amount of Data Received " + dataRecv);
+                    System.out.println("No of Packets Received " + pktRecv);
+                    System.out.println("No of Packets discarded (out of sequence) " + seqDiscard);
+                    System.out.println("No of Packets discarded (wrong checksum) " + cksumDiscard);
                     System.exit(0);
                 }
                 // receive the connection establish packet
@@ -153,6 +176,7 @@ public class Host {
                     hostack.setChecksum();
                     sendACKpacket(hostack);
                 } else {
+                    seqDiscard++;
                     hostack.setAcknumber(seqExpect);
                     hostack.setTimestamp(dealpack.getTimestamp());
                     hostack.setACK();

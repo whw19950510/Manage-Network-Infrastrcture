@@ -7,7 +7,7 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.*;
-
+import java.util.concurrent.locks.*;
 /* 
 Clarification: 
 1. The checksum is used whever to check and drop the packets, must match the checkSum first;
@@ -23,7 +23,6 @@ public class Client {
     private int mtu;                        // maximum transmission unit, in byte
     private int sws;                        // Sliding window size for buffering, in byte
 
-    // Map<Integer, Long>unACK;                 // HashMap for recording each packet's time out mechanism
     Map<Integer, Packet>sendBuffer;            // send buffer for unacknowledgement data
     private DatagramSocket sendsocket;
 
@@ -43,6 +42,13 @@ public class Client {
 
     private final String recvtype = "rcv";
     private final String sendtype = "snd";
+    // Transmission  
+    private int dataSend;
+    private int pktSend;
+    private int retransmissionNo;
+    private int dupAckNo;
+
+    private ReadWriteLock lk;
 
     public Client(int port, String remoteIP, int serverport, String filename, int mtu, int sws) {
         this.port = port;
@@ -50,8 +56,8 @@ public class Client {
         this.filename = filename;
         this.mtu = mtu;
         this.sws = sws;
-        duplicateACK = new ConcurrentHashMap<Integer, Integer>();
-        sendBuffer = new ConcurrentHashMap<Integer, Packet>();
+        duplicateACK = new ConcurrentSkipListMap<Integer, Integer>();
+        sendBuffer = new ConcurrentSkipListMap<Integer, Packet>();
         curbufferSize = 0;
         curTimeout = 5*1000000000;
         try {
@@ -65,12 +71,20 @@ public class Client {
 
         sendFile = new File(this.filename);
         filesize = sendFile.length();
+
+        dataSend = 0;
+        pktSend = 0;
+        retransmissionNo = 0;
+        dupAckNo = 0;
+        lk = new ReentrantReadWriteLock();
     }
 
     public void connectionRequest() {
         Packet connectionreq = null;
-        if(sendBuffer.containsKey(connectionreq) == false) {
-            connectionreq = new Packet(0);
+        byte[] datapayload = filename.getBytes();
+        dataSend += datapayload.length;
+        if(sendBuffer.containsKey(0) == false) {
+            connectionreq = new Packet(datapayload.length);
         } else {
             connectionreq = sendBuffer.get(0);
         }
@@ -78,7 +92,7 @@ public class Client {
         connectionreq.setTimestamp(System.nanoTime());
         connectionreq.setSYN();
         connectionreq.setChecksum();
-        connectionreq.setLength(0);
+        connectionreq.setLength(datapayload.length);
         sendPacket(connectionreq);
         curSequencenumber = 1;                          // The sequencenumber is set to 1
         printoutInfo(sendtype, connectionreq.getTimestamp(), "S---", connectionreq.getSequencenumber(), connectionreq.getLength(), connectionreq.getAckmber());
@@ -161,24 +175,31 @@ public class Client {
         // Retransmission policy: Timeout of packet / duplicate ACK is 3 times
         Runnable RentransRunnable = new Runnable() {
 			public void run() {
-				// update the timeout value for each ConcurrentHashMap Entry, if timeout resend current packet
-				for(Integer cur:sendBuffer.keySet()) {
-                    if(System.nanoTime() - sendBuffer.get(cur).getTimestamp() > curTimeout) {
-                        Packet timeoutpac = sendBuffer.get(cur);
-                        if(timeoutpac.isSYN()) {
-                            connectionRequest();
-                            continue;
+                try {
+                    lk.writeLock().lock();
+                    // update the timeout value for each ConcurrentHashMap Entry, if timeout resend current packet
+                    for(Integer cur:sendBuffer.keySet()) {
+                        if(System.nanoTime() - sendBuffer.get(cur).getTimestamp() > curTimeout) {
+                            Packet timeoutpac = sendBuffer.get(cur);
+                            if(timeoutpac.isSYN()) {
+                                connectionRequest();
+                                continue;
+                            }
+                            timeoutpac.setResendTime(timeoutpac.getResendTime() + 1);
+                            // if the resend time exceed maximum time, lost connections just exit sending
+                            if(sendBuffer.get(cur).getResendTime() > Client.Maximum_Retransmission) {
+                                System.err.print("Exceed the maximum transmission time\n");
+                                System.exit(1);
+                            }
+                            timeoutpac.setTimestamp(System.nanoTime());
+                            sendPacket(timeoutpac);
+                            printoutInfo(sendtype, timeoutpac.getTimestamp(), "---D", timeoutpac.getSequencenumber(), timeoutpac.getLength(), timeoutpac.getAckmber());
                         }
-                        timeoutpac.setResendTime(timeoutpac.getResendTime() + 1);
-                        // if the resend time exceed maximum time, lost connections just exit sending
-                        if(sendBuffer.get(cur).getResendTime() > Client.Maximum_Retransmission) {
-                            System.err.print("Exceed the maximum transmission time\n");
-                            System.exit(1);
-                        }
-                        timeoutpac.setTimestamp(System.nanoTime());
-                        sendPacket(timeoutpac);
-                        printoutInfo(sendtype, timeoutpac.getTimestamp(), "---D", timeoutpac.getSequencenumber(), timeoutpac.getLength(), timeoutpac.getAckmber());
                     }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    lk.writeLock().unlock();
                 }
 			}
 		};
@@ -217,7 +238,8 @@ public class Client {
                 printoutInfo(recvtype, recv.getTimestamp(), "-AF-", recv.getSequencenumber(), recv.getLength(), recv.getAckmber());
                 
                 Packet closeAck = new Packet(0);
-                closeAck.setAcknumber(closeAck.getSequencenumber() + 1);
+                closeAck.setAcknumber(2);
+                closeAck.setSequencenumber(curSequencenumber);
                 closeAck.setChecksum();
                 closeAck.setLength(0);
                 closeAck.setACK();
@@ -226,7 +248,11 @@ public class Client {
                 sendPacket(closeAck);
                 sendsocket.close();
                 printoutInfo(sendtype, closeAck.getTimestamp(), "-A--", closeAck.getSequencenumber(), closeAck.getLength(), closeAck.getAckmber());
-                
+                // Print statistics of transmission
+                System.out.println("Amount of Data Transferred " + dataSend);
+                System.out.println("No of Packets Sent " + pktSend);
+                System.out.println("No of Retransmissions " + retransmissionNo);
+                System.out.println("No of Duplicate Acknowledgements " + dupAckNo);
                 System.exit(0);
             }
             else if(recv.isACK()) {
@@ -235,18 +261,26 @@ public class Client {
                 int acknumber = recv.getAckmber();
                 if(duplicateACK.containsKey(acknumber) == false) {
                     duplicateACK.put(acknumber, 1);
+                    lk.writeLock().lock();
                     for(Integer cur:sendBuffer.keySet()) {
                         if(cur <= acknumber - 1) {
                             curbufferSize -= 1;  // move out 1 packet from the buffer                                                 
                             sendBuffer.remove(cur);
+                            duplicateACK.remove(cur);
                         }
-                    }    
+                    }
+                    lk.writeLock().unlock();
                 } else {
+                    dupAckNo++;
                     duplicateACK.put(acknumber, duplicateACK.get(acknumber) + 1);
                     // fast retransmission
                     if(duplicateACK.get(acknumber) >= 3) {
+                        retransmissionNo++;
+                        if (!sendBuffer.containsKey(acknumber))
+                            continue;
                         Packet resendtarget = sendBuffer.get(acknumber);
                         resendtarget.setTimestamp(System.nanoTime());
+                        dataSend += resendtarget.getLength();
                         sendPacket(resendtarget);
                         resendtarget.setResendTime(resendtarget.getResendTime() + 1);
                         printoutInfo(sendtype, resendtarget.getTimestamp(), "---D", resendtarget.getSequencenumber(), resendtarget.getLength(), resendtarget.getAckmber());
@@ -264,6 +298,7 @@ public class Client {
         try {
             cur.getPacket().setAddress(remoteIP);  
             cur.getPacket().setPort(serverport);
+            pktSend++;
             sendsocket.send(cur.getPacket());            
         } catch(IOException e) {
             e.printStackTrace();
